@@ -6,13 +6,7 @@
     "module": "ESNext",
     "target": "ES2022",
     "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": true,
-    "paths": {
-      "$lib": ["./src/lib"],
-      "$lib/*": ["./src/lib/*"],
-      "$app/types": ["./node_modules/$app/types"],
-      "$app/types/*": ["./node_modules/$app/types/*"]
-    }
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src",
