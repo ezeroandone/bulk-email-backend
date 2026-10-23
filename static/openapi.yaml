@@ -1,0 +1,1251 @@
+openapi: 3.1.0
+info:
+  title: MergeMail API
+  version: 1.0.0
+  description: |
+    The MergeMail REST API allows you to manage datasets, document templates, campaigns,
+    credits, and payments programmatically.
+
+    All endpoints require a Bearer JWT token (Supabase session access_token) unless noted otherwise.
+
+servers:
+  - url: /api
+    description: Relative to the deployment origin
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+
+    ApiError:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Unauthorized
+        code:
+          type: string
+          example: UNAUTHORIZED
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, admin]
+
+    CreditBalance:
+      type: object
+      properties:
+        available:
+          type: integer
+          description: Credits available to spend
+        reserved:
+          type: integer
+          description: Credits locked for pending campaigns
+        total_purchased:
+          type: integer
+        total_consumed:
+          type: integer
+
+    CreditTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [signup_bonus, purchase, campaign_debit, refund, admin_adjustment, expiry]
+        delta:
+          type: integer
+          description: Positive = credit added, negative = credit deducted
+        balance_after:
+          type: integer
+        note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreditPackage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        credits:
+          type: integer
+        price_kobo:
+          type: integer
+          description: Price in kobo (NGN * 100)
+        currency:
+          type: string
+          example: NGN
+        sort_order:
+          type: integer
+
+    PaymentOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        package_id:
+          type: string
+          format: uuid
+        amount_kobo:
+          type: integer
+        currency:
+          type: string
+        credits:
+          type: integer
+        status:
+          type: string
+          enum: [pending, success, failed, abandoned, reversed, cancelled]
+        reference:
+          type: string
+          nullable: true
+        authorization_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        original_filename:
+          type: string
+        mime_type:
+          type: string
+        row_count:
+          type: integer
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              name:
+                type: string
+              sample:
+                type: array
+                items:
+                  type: string
+        preview_rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        original_filename:
+          type: string
+        mime_type:
+          type: string
+        format:
+          type: string
+          enum: [docx, pdf, xlsx, csv, txt]
+        type:
+          type: string
+          enum: [template, asset]
+        placeholders:
+          type: array
+          items:
+            type: string
+        file_size:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, ready, queued, processing, paused, completed, failed, cancelled]
+        dataset_id:
+          type: string
+          format: uuid
+          nullable: true
+        document_template_id:
+          type: string
+          format: uuid
+          nullable: true
+        email_template_id:
+          type: string
+          format: uuid
+          nullable: true
+        smtp_config_id:
+          type: string
+          format: uuid
+          nullable: true
+        email_subject:
+          type: string
+        email_body:
+          type: string
+        email_is_html:
+          type: boolean
+        recipient_email_column:
+          type: string
+          nullable: true
+        total_recipients:
+          type: integer
+        sent_count:
+          type: integer
+        failed_count:
+          type: integer
+        skipped_count:
+          type: integer
+        credits_used:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    CampaignReport:
+      type: object
+      properties:
+        campaign:
+          $ref: '#/components/schemas/Campaign'
+        recipients:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              email:
+                type: string
+              name:
+                type: string
+                nullable: true
+              status:
+                type: string
+                enum: [pending, processing, sent, failed, retrying, skipped, cancelled]
+              attempt_count:
+                type: integer
+              error_message:
+                type: string
+                nullable: true
+              last_attempt_at:
+                type: string
+                format: date-time
+                nullable: true
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+
+paths:
+  /me:
+    get:
+      summary: Get current user
+      operationId: getMe
+      tags: [User]
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /credits/balance:
+    get:
+      summary: Get credit wallet balance
+      operationId: getCreditBalance
+      tags: [Credits]
+      responses:
+        '200':
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CreditBalance'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /credits/transactions:
+    get:
+      summary: List credit ledger transactions
+      operationId: getCreditTransactions
+      tags: [Credits]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated credit transactions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          transactions:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CreditTransaction'
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+
+  /credit-packages:
+    get:
+      summary: List active credit packages
+      operationId: getCreditPackages
+      tags: [Credits]
+      responses:
+        '200':
+          description: List of available credit packages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          packages:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CreditPackage'
+
+  /payments/initialize:
+    post:
+      summary: Initialize a Paystack payment for credits
+      operationId: initializePayment
+      tags: [Payments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [package_id]
+              properties:
+                package_id:
+                  type: string
+                  format: uuid
+                  description: ID of the credit package to purchase
+      responses:
+        '200':
+          description: Payment initialized
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          order:
+                            $ref: '#/components/schemas/PaymentOrder'
+        '400':
+          description: Invalid package
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /payments/{reference}:
+    get:
+      summary: Get payment order status
+      operationId: getPayment
+      tags: [Payments]
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment order details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          order:
+                            $ref: '#/components/schemas/PaymentOrder'
+        '404':
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /datasets:
+    get:
+      summary: List datasets
+      operationId: getDatasets
+      tags: [Datasets]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of datasets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          datasets:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Dataset'
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+    post:
+      summary: Upload and create a dataset
+      operationId: createDataset
+      tags: [Datasets]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: XLSX or CSV file
+                name:
+                  type: string
+                  description: Optional display name
+      responses:
+        '201':
+          description: Dataset created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          dataset:
+                            $ref: '#/components/schemas/Dataset'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /datasets/{id}:
+    get:
+      summary: Get dataset details
+      operationId: getDataset
+      tags: [Datasets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          dataset:
+                            $ref: '#/components/schemas/Dataset'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    delete:
+      summary: Delete a dataset
+      operationId: deleteDataset
+      tags: [Datasets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /datasets/{id}/rows:
+    get:
+      summary: Get paginated dataset rows
+      operationId: getDatasetRows
+      tags: [Datasets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Paginated rows
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          rows:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: true
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+
+  /templates:
+    get:
+      summary: List document templates
+      operationId: getTemplates
+      tags: [Templates]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of templates
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          templates:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Template'
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+    post:
+      summary: Upload a document template
+      operationId: createTemplate
+      tags: [Templates]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: DOCX or PDF file
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          template:
+                            $ref: '#/components/schemas/Template'
+
+  /templates/{id}:
+    get:
+      summary: Get template details
+      operationId: getTemplate
+      tags: [Templates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          template:
+                            $ref: '#/components/schemas/Template'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    patch:
+      summary: Update template metadata
+      operationId: updateTemplate
+      tags: [Templates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          template:
+                            $ref: '#/components/schemas/Template'
+    delete:
+      summary: Delete a template
+      operationId: deleteTemplate
+      tags: [Templates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Template deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+
+  /campaigns:
+    get:
+      summary: List campaigns
+      operationId: getCampaigns
+      tags: [Campaigns]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, ready, queued, processing, paused, completed, failed, cancelled]
+      responses:
+        '200':
+          description: Paginated list of campaigns
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          campaigns:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Campaign'
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+    post:
+      summary: Create a new campaign
+      operationId: createCampaign
+      tags: [Campaigns]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email_subject, email_body]
+              properties:
+                name:
+                  type: string
+                dataset_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                document_template_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                email_template_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                smtp_config_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                email_subject:
+                  type: string
+                email_body:
+                  type: string
+                email_is_html:
+                  type: boolean
+                  default: false
+                recipient_email_column:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          campaign:
+                            $ref: '#/components/schemas/Campaign'
+
+  /campaigns/{id}:
+    get:
+      summary: Get campaign details
+      operationId: getCampaign
+      tags: [Campaigns]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Campaign details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          campaign:
+                            $ref: '#/components/schemas/Campaign'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /campaigns/{id}/start:
+    post:
+      summary: Start a campaign
+      operationId: startCampaign
+      tags: [Campaigns]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Campaign started
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          campaign:
+                            $ref: '#/components/schemas/Campaign'
+        '400':
+          description: Campaign cannot be started (insufficient credits, wrong state, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /campaigns/{id}/pause:
+    post:
+      summary: Pause a running campaign
+      operationId: pauseCampaign
+      tags: [Campaigns]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Campaign paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: Campaign is not in a pausable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /campaigns/{id}/resume:
+    post:
+      summary: Resume a paused campaign
+      operationId: resumeCampaign
+      tags: [Campaigns]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Campaign resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: Campaign is not paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /campaigns/{id}/cancel:
+    post:
+      summary: Cancel a campaign
+      operationId: cancelCampaign
+      tags: [Campaigns]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Campaign cancelled and reserved credits released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: Campaign cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /campaigns/{id}/report:
+    get:
+      summary: Get campaign delivery report
+      operationId: getCampaignReport
+      tags: [Campaigns]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: status
+          in: query
+          description: Filter recipients by delivery status
+          schema:
+            type: string
+            enum: [pending, processing, sent, failed, retrying, skipped, cancelled]
+      responses:
+        '200':
+          description: Campaign delivery report
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CampaignReport'
+
+  /smtp/test:
+    post:
+      summary: Test SMTP configuration
+      operationId: testSmtp
+      tags: [SMTP]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [host, port, secure, username, password, from_email]
+              properties:
+                host:
+                  type: string
+                  example: smtp.gmail.com
+                port:
+                  type: integer
+                  example: 587
+                secure:
+                  type: boolean
+                  description: true for SSL/TLS (port 465), false for STARTTLS (port 587)
+                username:
+                  type: string
+                password:
+                  type: string
+                from_name:
+                  type: string
+                from_email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: SMTP test result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          connected:
+                            type: boolean
+                          message:
+                            type: string
+        '400':
+          description: SMTP test failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /webhooks/paystack:
+    post:
+      summary: Paystack webhook handler
+      operationId: paystackWebhook
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Paystack event payload (see Paystack documentation)
+              properties:
+                event:
+                  type: string
+                  example: charge.success
+                data:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: Invalid signature or payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /internal/dispatch:
+    post:
+      summary: Internal campaign dispatch worker
+      operationId: internalDispatch
+      tags: [Internal]
+      security: []
+      parameters:
+        - name: x-cron-secret
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Value of the CRON_SECRET environment variable
+      responses:
+        '200':
+          description: Dispatch tick processed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          processed:
+                            type: integer
+                            description: Number of jobs processed in this tick
+        '401':
+          description: Invalid or missing cron secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
