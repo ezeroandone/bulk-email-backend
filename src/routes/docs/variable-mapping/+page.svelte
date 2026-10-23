@@ -70,12 +70,12 @@
 
 <h3>Formatter Examples</h3>
 
-<pre><code>Subject: Certificate for {{full_name|title}}
+<pre><code>{`Subject: Certificate for {{full_name|title}}
 
 Dear {{full_name|title}},
 
 Your course "{{course_title|upper}}" has been completed.
-Thank you, {{first_name|default:Participant}}!</code></pre>
+Thank you, {{first_name|default:Participant}}!`}</code></pre>
 
 <p>
   For a spreadsheet row where <code>full_name</code> = "adaeze okonkwo" and <code>course_title</code> = "data analysis":

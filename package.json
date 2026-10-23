@@ -48,6 +48,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "autoprefixer": "^10.4.20",
     "bits-ui": "^0.21.16",
+    "cookie": "^2.0.1",
     "docxtemplater": "^3.52.1",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",

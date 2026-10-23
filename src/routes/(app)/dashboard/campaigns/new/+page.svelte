@@ -508,7 +508,7 @@
                 id="subject"
                 type="text"
                 class="field-input"
-                placeholder="e.g. Your certificate, {{first_name}}"
+                placeholder={'e.g. Your certificate, {{first_name}}'}
                 bind:value={subject}
               />
               <VariablePicker columns={datasetColumns} onSelect={insertSubjectVariable} />
@@ -524,7 +524,7 @@
               id="body"
               class="field-textarea body-editor"
               rows="12"
-              placeholder="<p>Dear {{first_name}},</p><p>Please find your document attached.</p>"
+              placeholder={'<p>Dear {{first_name}},</p><p>Please find your document attached.</p>'}
               bind:value={body}
             ></textarea>
           </div>

@@ -1,50 +1,31 @@
 /**
- * SvelteKit 3 explicit environment variable definitions.
- * Variables defined here are available via:
- *   - `$app/env/public`  — public vars (safe to expose to the browser)
- *   - `$app/env/private` — private vars (server-only)
+ * SvelteKit 3 environment variable declarations.
  *
- * After adding variables here, run `svelte-kit sync` to regenerate types.
+ * Variables are dynamic by default (read when the app starts, not inlined at
+ * build time), so the app can be built once and deployed to different
+ * environments. Each variable has a schema that falls back to an empty string
+ * when unset, which makes every variable optional at build time while keeping
+ * the exported types as `string`.
+ *
+ * `public: true` marks browser-safe variables (importable from
+ * `$app/env/public`); the rest are server-only (importable from
+ * `$app/env/private`). Runtime presence of the server-only secrets is enforced
+ * by `validateEnv()` in `src/lib/server/env.ts`.
  */
 import { defineEnvVars } from '@sveltejs/kit/env';
 
 export const variables = defineEnvVars({
-  // ── Public (safe for browser) ────────────────────────────────────
-  PUBLIC_SUPABASE_URL: {
-    public: true,
-    description: 'Supabase project URL'
-  },
-  PUBLIC_SUPABASE_ANON_KEY: {
-    public: true,
-    description: 'Supabase anonymous (public) key'
-  },
-  PUBLIC_APP_URL: {
-    public: true,
-    description: 'Canonical application URL (e.g. https://app.mergemail.io)'
-  },
-  PUBLIC_APP_NAME: {
-    public: true,
-    description: 'Display name of the application'
-  },
-  PUBLIC_PAYSTACK_PUBLIC_KEY: {
-    public: true,
-    description: 'Paystack publishable key'
-  },
+  // ── Public (browser-safe) ────────────────────────────────────────────────
+  PUBLIC_SUPABASE_URL: { public: true, schema: (value: string | undefined) => value ?? '' },
+  PUBLIC_SUPABASE_ANON_KEY: { public: true, schema: (value: string | undefined) => value ?? '' },
+  PUBLIC_APP_URL: { public: true, schema: (value: string | undefined) => value ?? '' },
+  PUBLIC_APP_NAME: { public: true, schema: (value: string | undefined) => value ?? '' },
+  PUBLIC_PAYSTACK_PUBLIC_KEY: { public: true, schema: (value: string | undefined) => value ?? '' },
 
-  // ── Private (server-only) ────────────────────────────────────────
-  SUPABASE_SERVICE_ROLE_KEY: {
-    description: 'Supabase service-role key — bypasses RLS'
-  },
-  SMTP_ENCRYPTION_KEY: {
-    description: '32-byte hex key for encrypting stored SMTP credentials'
-  },
-  INTERNAL_WORKER_SECRET: {
-    description: 'Shared secret for authenticating internal cron/queue calls'
-  },
-  PAYSTACK_SECRET_KEY: {
-    description: 'Paystack secret key'
-  },
-  PAYSTACK_PUBLIC_KEY: {
-    description: 'Paystack public key (server-side reference)'
-  }
+  // ── Private (server-only) ────────────────────────────────────────────────
+  SUPABASE_SERVICE_ROLE_KEY: { schema: (value: string | undefined) => value ?? '' },
+  SMTP_ENCRYPTION_KEY: { schema: (value: string | undefined) => value ?? '' },
+  INTERNAL_WORKER_SECRET: { schema: (value: string | undefined) => value ?? '' },
+  PAYSTACK_SECRET_KEY: { schema: (value: string | undefined) => value ?? '' },
+  PAYSTACK_PUBLIC_KEY: { schema: (value: string | undefined) => value ?? '' }
 });

@@ -99,7 +99,7 @@
               name="subject_template"
               type="text"
               class="field-input"
-              placeholder="e.g. Your certificate, {{first_name}}"
+              placeholder={'e.g. Your certificate, {{first_name}}'}
               bind:value={subject}
               required
             />

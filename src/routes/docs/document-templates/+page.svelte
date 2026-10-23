@@ -31,12 +31,12 @@
   The variable name must match the normalized column name from your spreadsheet.
 </p>
 
-<pre><code>Dear {{full_name}},
+<pre><code>{`Dear {{full_name}},
 
 Congratulations on completing {{course_title}} on {{completion_date}}.
 Your certificate ID is {{certificate_id}}.
 
-This certificate is issued by the {{institution_name}} Training Department.</code></pre>
+This certificate is issued by the {{institution_name}} Training Department.`}</code></pre>
 
 <h3>Where Placeholders Work</h3>
 

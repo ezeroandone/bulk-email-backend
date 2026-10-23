@@ -29,7 +29,7 @@
   Keep subject lines under 60 characters for best display in email clients.
 </p>
 
-<pre><code>Your certificate for {{course_title|title}} is ready, {{first_name|title}}!</code></pre>
+<pre><code>{`Your certificate for {{course_title|title}} is ready, {{first_name|title}}!`}</code></pre>
 
 <h3>Body — HTML Mode</h3>
 
@@ -38,9 +38,9 @@
   Write raw HTML in the editor or use the toolbar for common formatting.
 </p>
 
-<pre><code>&lt;p&gt;Dear &lt;strong&gt;{{full_name|title}}&lt;/strong&gt;,&lt;/p&gt;
-&lt;p&gt;Congratulations on completing &lt;em&gt;{{course_title}}&lt;/em&gt;.&lt;/p&gt;
-&lt;p&gt;Please find your certificate attached.&lt;/p&gt;</code></pre>
+<pre><code>{`<p>Dear <strong>{{full_name|title}}</strong>,</p>
+<p>Congratulations on completing <em>{{course_title}}</em>.</p>
+<p>Please find your certificate attached.</p>`}</code></pre>
 
 <h3>Body — Plain Text Mode</h3>
 
@@ -49,13 +49,13 @@
   Line breaks are preserved.
 </p>
 
-<pre><code>Dear {{full_name|title}},
+<pre><code>{`Dear {{full_name|title}},
 
 Congratulations on completing {{course_title}}.
 Your certificate is attached.
 
 Best regards,
-The Training Team</code></pre>
+The Training Team`}</code></pre>
 
 <h2>Email Templates</h2>
 

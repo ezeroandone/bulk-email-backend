@@ -4,6 +4,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "functions": {
-    "api/**": { "maxDuration": 60 }
+    "api/**": { "maxDuration": 60 },
+    "src/routes/api/internal/dispatch/+server.ts": { "maxDuration": 30 }
   }
 }
