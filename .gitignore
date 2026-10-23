@@ -21,3 +21,17 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Kiro AI
+.kiro/
+
+# Project snapshots
+.snapshots/
+
+# Test results
+/playwright-report/
+/test-results/
