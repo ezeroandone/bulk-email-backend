@@ -420,13 +420,13 @@
       <Card>
         <div class="form-section">
           {#if mode === 'A'}
-            <p class="step-desc">Upload PDFs or a ZIP file containing per-recipient documents.</p>
+            <p class="step-desc">Upload PDFs, images (PNG, JPEG, WebP, GIF, TIFF), or a ZIP file containing per-recipient documents.</p>
             <div class="upload-note">
               <span class="material-symbols-outlined" aria-hidden="true">info</span>
-              <span>Files will be matched to recipients using the matching rules you configure in the next step.</span>
+              <span>Supported formats: PDF, PNG, JPEG, WebP, GIF, TIFF, and ZIP archives containing any of the above. Files will be matched to recipients using the matching rules you configure in the next step.</span>
             </div>
           {:else}
-            <p class="step-desc">Choose a DOCX or PDF template to generate personalised documents.</p>
+            <p class="step-desc">Choose a DOCX, PDF, or image template to generate personalised documents.</p>
             {#if data.templates.length === 0}
               <p class="empty-hint">
                 No templates yet. <a href="/dashboard/templates/new">Upload a template</a> first.

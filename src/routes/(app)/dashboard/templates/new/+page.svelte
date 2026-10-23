@@ -20,7 +20,7 @@
   const accept = $derived(() => {
     if (selectedMode === 'docx') return '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     if (selectedMode === 'pdf') return '.pdf,application/pdf';
-    if (selectedMode === 'image') return '.png,.jpg,.jpeg,image/png,image/jpeg';
+    if (selectedMode === 'image') return '.png,.jpg,.jpeg,.webp,.gif,.tiff,.tif,image/png,image/jpeg,image/webp,image/gif,image/tiff';
     return '*';
   });
 
@@ -112,7 +112,7 @@
       mode: 'image',
       icon: 'image',
       label: 'Image Template',
-      desc: 'Upload a PNG or JPEG image as a background. Add text overlays to create a PDF.'
+      desc: 'Upload a PNG, JPEG, WebP, GIF, or TIFF image as a background. Add text overlays to create a PDF.'
     }
   ];
 </script>
@@ -201,7 +201,7 @@
             <span class="material-symbols-outlined drop-icon" aria-hidden="true">upload_file</span>
             <span class="drop-label">Drop your file here or click to browse</span>
             <span class="drop-hint">
-              {selectedMode === 'docx' ? '.docx files' : selectedMode === 'pdf' ? '.pdf files' : 'PNG or JPEG images'}
+              {selectedMode === 'docx' ? '.docx files' : selectedMode === 'pdf' ? '.pdf files' : 'PNG, JPEG, WebP, GIF, or TIFF images'}
             </span>
           {/if}
         </div>

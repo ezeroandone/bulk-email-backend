@@ -4,10 +4,14 @@ import { requireSession } from '$lib/server/auth/session';
 import { generateDocx } from '$lib/server/services/documents/docxGenerator';
 import {
   generateFromPdfTemplate,
-  generateFromImage
+  generateFromImage,
+  detectImageFormat
 } from '$lib/server/services/documents/pdfGenerator';
-import type { PdfFieldDef } from '$lib/server/services/documents/pdfGenerator';
+import type { PdfFieldDef, ImageFormat } from '$lib/server/services/documents/pdfGenerator';
 import type { RequestHandler } from './$types';
+
+/** Image format extensions that map to the image branch. */
+const IMAGE_FORMATS = new Set(['png', 'jpeg', 'jpg', 'webp', 'gif', 'tiff', 'tif', 'bmp']);
 
 const PreviewSchema = z.object({
   variables: z.record(z.string(), z.string())
@@ -98,7 +102,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       }));
       resultBuffer = await generateFromPdfTemplate(fileBuffer, fields, variables);
       mimeType = 'application/pdf';
-    } else if (template.format === 'png' || template.format === 'jpeg' || template.format === 'jpg') {
+    } else if (IMAGE_FORMATS.has(template.format)) {
       const fields: PdfFieldDef[] = (fieldRows ?? []).map((f: {
         id: string;
         variable: string;
@@ -120,7 +124,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
         alignment: f.alignment as PdfFieldDef['alignment'],
         pageIndex: f.page_index
       }));
-      const imageType = template.format === 'png' ? 'png' : 'jpeg';
+      // Use the stored format, or auto-detect from magic bytes as fallback
+      const imageType: ImageFormat =
+        (IMAGE_FORMATS.has(template.format) ? template.format : detectImageFormat(fileBuffer) ?? 'png') as ImageFormat;
       resultBuffer = await generateFromImage(
         fileBuffer,
         imageType,

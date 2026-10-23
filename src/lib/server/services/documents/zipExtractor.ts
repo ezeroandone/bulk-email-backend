@@ -4,7 +4,23 @@
  *  - ZIP bomb protection (max uncompressed bytes)
  *  - Extension allow-list
  *  - Filename sanitization
+ *
+ * Default allowed document extensions (used by campaign Mode A):
+ *  .pdf, .docx, .png, .jpg, .jpeg, .webp, .gif, .tiff, .tif
  */
+
+/** Default set of extensions accepted for per-recipient document uploads. */
+export const DEFAULT_DOCUMENT_EXTS = [
+  '.pdf',
+  '.docx',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.tiff',
+  '.tif'
+];
 import JSZip from 'jszip';
 import path from 'path';
 

@@ -82,7 +82,9 @@
   }
 
   const formatLabel: Record<string, string> = {
-    docx: 'Word (.docx)', pdf: 'PDF', png: 'PNG Image', jpg: 'JPEG Image', jpeg: 'JPEG Image'
+    docx: 'Word (.docx)', pdf: 'PDF',
+    png: 'PNG Image', jpg: 'JPEG Image', jpeg: 'JPEG Image',
+    webp: 'WebP Image', gif: 'GIF Image', tiff: 'TIFF Image', tif: 'TIFF Image', bmp: 'BMP Image'
   };
 
   // ── Save PDF fields ────────────────────────────────────────────────────────
