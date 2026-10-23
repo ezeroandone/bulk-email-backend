@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { PUBLIC_APP_URL } from '$app/env/public';
 
@@ -13,14 +13,14 @@ export const load: PageServerLoad = async ({ locals: { session } }) => {
 export const actions: Actions = {
   /**
    * Initiate Google OAuth via Supabase.
-   * This action runs server-side so the PKCE code_verifier gets written
-   * into the session cookie before the browser is redirected to Google.
+   * Returns the authorization URL as a plain Response redirect so SvelteKit
+   * doesn't block the external Google URL.
    */
   google: async ({ locals: { supabase }, url }) => {
     const origin = PUBLIC_APP_URL ?? url.origin;
     const redirectTo = `${origin}/auth/callback`;
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
@@ -31,10 +31,16 @@ export const actions: Actions = {
       }
     });
 
-    if (error || !data.url) {
-      redirect(302, '/login?error=oauth_init_failed');
+    if (oauthError || !data.url) {
+      // Return the error URL as data so the client can display it
+      return { error: 'oauth_init_failed' };
     }
 
-    redirect(302, data.url);
+    // Use a raw Response to redirect to the external Google OAuth URL
+    // (SvelteKit's redirect() only allows same-origin redirects in actions)
+    return new Response(null, {
+      status: 302,
+      headers: { location: data.url }
+    });
   }
 };

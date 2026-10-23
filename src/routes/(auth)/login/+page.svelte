@@ -20,6 +20,20 @@
       errorMessage = null;
     }
   });
+
+  function handleSubmit() {
+    loading = true;
+    // enhance callback — on result, stop spinner
+    return async ({ result, update }: { result: { type: string; data?: { error?: string } }, update: () => Promise<void> }) => {
+      if (result.type === 'success' && result.data?.error) {
+        errorMessage = 'Could not start Google sign-in. Please try again.';
+        loading = false;
+      } else {
+        await update();
+        loading = false;
+      }
+    };
+  }
 </script>
 
 <svelte:head>
@@ -53,7 +67,7 @@
     {/if}
 
     <!-- Google sign-in — POST to server action which initiates PKCE OAuth -->
-    <form method="POST" action="?/google" use:enhance={() => { loading = true; return async ({ update }) => { await update(); loading = false; }; }}>
+    <form method="POST" action="?/google" use:enhance={handleSubmit}>
       <button type="submit" class="google-btn" disabled={loading}>
         {#if loading}
           <span class="material-symbols-outlined icon-sm spin" aria-hidden="true">progress_activity</span>
