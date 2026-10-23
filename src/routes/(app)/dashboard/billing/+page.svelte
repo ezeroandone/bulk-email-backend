@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
   import { Card, Button, Badge, Pagination } from '$lib/components/ui';
-  import type { PageProps } from './$types';
+  import type { PageData } from './$types';
 
-  let { data, form }: PageProps = $props();
+  let { data }: { data: PageData } = $props();
 
   let wallet = $derived(data.wallet);
 
@@ -20,27 +19,51 @@
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  type PaymentStatus = 'pending' | 'success' | 'failed' | 'abandoned' | 'reversed' | 'cancelled';
+  type PaymentStatus = 'pending' | 'successful' | 'failed' | 'abandoned' | 'reversed' | 'cancelled';
   const statusVariant: Record<PaymentStatus, 'neutral' | 'success' | 'error' | 'warning'> = {
-    pending:   'warning',
-    success:   'success',
-    failed:    'error',
-    abandoned: 'neutral',
-    reversed:  'warning',
-    cancelled: 'neutral'
+    pending:    'warning',
+    successful: 'success',
+    failed:     'error',
+    abandoned:  'neutral',
+    reversed:   'warning',
+    cancelled:  'neutral'
   };
 
-  type LedgerType = string;
   const ledgerLabel: Record<string, string> = {
-    signup_bonus:     'Signup Bonus',
+    signup_grant:     'Signup Bonus',
     purchase:         'Purchase',
-    campaign_debit:   'Campaign',
-    refund:           'Refund',
+    reservation:      'Reserved',
+    settlement:       'Consumed',
+    release:          'Released',
     admin_adjustment: 'Adjustment',
     expiry:           'Expiry'
   };
 
   let buyingId = $state<string | null>(null);
+  let buyError = $state<string | null>(null);
+
+  async function handleBuy(packageId: string): Promise<void> {
+    buyingId = packageId;
+    buyError = null;
+    try {
+      const res = await fetch('/api/payments/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId })
+      });
+      const body = await res.json() as { checkoutUrl?: string; reference?: string; error?: string };
+      if (!res.ok || !body.checkoutUrl) {
+        buyError = body.error ?? 'Failed to initialize payment. Please try again.';
+        return;
+      }
+      // Redirect to Paystack checkout
+      window.location.href = body.checkoutUrl;
+    } catch {
+      buyError = 'Network error. Please check your connection and try again.';
+    } finally {
+      buyingId = null;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -53,10 +76,10 @@
     <p class="page-subtitle">Manage your credit balance and purchase history.</p>
   </div>
 
-  {#if form?.message}
+  {#if buyError}
     <div class="alert alert--error" role="alert">
       <span class="material-symbols-outlined">error</span>
-      {form.message}
+      {buyError}
     </div>
   {/if}
 
@@ -117,23 +140,14 @@
               <p class="package-rate">
                 {formatNGN(Math.round(pkg.price_kobo / pkg.credits * 100))} / 100 credits
               </p>
-
-              <form
-                method="POST"
-                action="?/buyCredits"
-                use:enhance={() => {
-                  buyingId = pkg.id;
-                  return async ({ update }) => {
-                    buyingId = null;
-                    await update();
-                  };
-                }}
+              <Button
+                class="buy-btn"
+                loading={buyingId === pkg.id}
+                disabled={buyingId !== null}
+                onclick={() => handleBuy(pkg.id)}
               >
-                <input type="hidden" name="package_id" value={pkg.id} />
-                <Button type="submit" class="buy-btn" loading={buyingId === pkg.id}>
-                  Buy Now
-                </Button>
-              </form>
+                Buy Now
+              </Button>
             </div>
           </Card>
         {/each}
@@ -170,11 +184,11 @@
               </tr>
             </thead>
             <tbody>
-              {#each data.purchases as p}
+              {#each data.purchases as p (p.id)}
                 <tr>
                   <td class="date-col">{fmtDate(p.created_at)}</td>
                   <td>{p.package_name ?? '—'}</td>
-                  <td class="num-col">{formatCredits(p.credits ?? 0)}</td>
+                  <td class="num-col">{p.credits != null ? formatCredits(p.credits) : '—'}</td>
                   <td class="num-col">{formatNGN(p.amount_kobo ?? 0)}</td>
                   <td>
                     <Badge variant={statusVariant[p.status as PaymentStatus] ?? 'neutral'}>
@@ -182,8 +196,10 @@
                     </Badge>
                   </td>
                   <td class="ref-col">
-                    {#if p.paystack_reference}
-                      <code class="ref">{p.paystack_reference}</code>
+                    {#if p.reference}
+                      <a href="/dashboard/billing/receipt/{p.reference}" class="ref-link">
+                        <code class="ref">{p.reference}</code>
+                      </a>
                     {:else}—{/if}
                   </td>
                 </tr>
@@ -233,19 +249,19 @@
                 <th scope="col">Type</th>
                 <th scope="col">Amount</th>
                 <th scope="col">Balance After</th>
-                <th scope="col">Description</th>
+                <th scope="col">Note</th>
               </tr>
             </thead>
             <tbody>
-              {#each data.ledger as entry}
+              {#each data.ledger as entry (entry.id)}
                 <tr>
                   <td class="date-col">{fmtDate(entry.created_at)}</td>
-                  <td>{ledgerLabel[entry.type as LedgerType] ?? entry.type}</td>
-                  <td class="num-col" class:credit-pos={entry.amount > 0} class:credit-neg={entry.amount < 0}>
-                    {entry.amount > 0 ? '+' : ''}{formatCredits(entry.amount)}
+                  <td>{ledgerLabel[entry.type] ?? entry.type}</td>
+                  <td class="num-col" class:credit-pos={entry.delta > 0} class:credit-neg={entry.delta < 0}>
+                    {entry.delta > 0 ? '+' : ''}{formatCredits(entry.delta)}
                   </td>
                   <td class="num-col">{formatCredits(entry.balance_after)}</td>
-                  <td class="desc-col">{entry.description ?? '—'}</td>
+                  <td class="desc-col">{entry.note ?? '—'}</td>
                 </tr>
               {/each}
             </tbody>
@@ -305,7 +321,6 @@
 
   .alert--error { background: var(--color-error-light); color: var(--color-error); }
 
-  /* Wallet card */
   :global(.wallet-card) { padding: 1.5rem !important; }
 
   .wallet-title {
@@ -318,9 +333,7 @@
     margin: 0 0 1.25rem;
   }
 
-  .wallet-title .material-symbols-outlined {
-    color: var(--color-brand);
-  }
+  .wallet-title .material-symbols-outlined { color: var(--color-brand); }
 
   .wallet-stats {
     display: flex;
@@ -329,11 +342,7 @@
     flex-wrap: wrap;
   }
 
-  .wallet-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
+  .wallet-stat { display: flex; flex-direction: column; gap: 0.25rem; }
 
   .wallet-stat-label {
     font-size: var(--font-size-xs);
@@ -350,9 +359,7 @@
     margin: 0;
   }
 
-  .wallet-stat-value--main {
-    color: var(--color-text);
-  }
+  .wallet-stat-value--main { color: var(--color-text); }
 
   .wallet-stat-divider {
     width: 1px;
@@ -361,7 +368,6 @@
     flex-shrink: 0;
   }
 
-  /* Sections */
   .section { display: flex; flex-direction: column; gap: 1rem; }
 
   .section-title {
@@ -379,7 +385,6 @@
     color: var(--color-text-muted);
   }
 
-  /* Packages */
   .packages-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -403,10 +408,7 @@
     gap: 0.25rem;
   }
 
-  .package-icon {
-    font-size: 2.5rem;
-    color: var(--color-brand);
-  }
+  .package-icon { font-size: 2.5rem; color: var(--color-brand); }
 
   .package-credits-value {
     font-size: var(--font-size-3xl, 1.875rem);
@@ -444,10 +446,7 @@
     margin: 0;
   }
 
-  :global(.buy-btn) {
-    width: 100%;
-    margin-top: 0.5rem;
-  }
+  :global(.buy-btn) { width: 100%; margin-top: 0.5rem; }
 
   .no-packages {
     text-align: center;
@@ -457,7 +456,6 @@
     margin: 0;
   }
 
-  /* Tables */
   .table-scroll { overflow-x: auto; }
 
   .data-table {
@@ -499,10 +497,12 @@
     font-size: var(--font-size-xs);
   }
 
+  .ref-link { text-decoration: none; color: inherit; }
+  .ref-link:hover .ref { text-decoration: underline; color: var(--color-brand); }
+
   .credit-pos { color: var(--color-success); font-weight: 500; }
   .credit-neg { color: var(--color-error);   font-weight: 500; }
 
-  /* Empty state */
   .empty-state {
     display: flex;
     flex-direction: column;
@@ -514,10 +514,7 @@
     text-align: center;
   }
 
-  .empty-icon {
-    font-size: 2.5rem;
-    color: var(--color-text-subtle);
-  }
+  .empty-icon { font-size: 2.5rem; color: var(--color-text-subtle); }
 
   .pagination-row {
     display: flex;
