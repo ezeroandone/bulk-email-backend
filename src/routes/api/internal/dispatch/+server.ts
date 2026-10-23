@@ -5,7 +5,12 @@
  * Authorization: Bearer ${INTERNAL_WORKER_SECRET}
  */
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import type { Config, RequestHandler } from './$types';
+
+/** Give this serverless function 30 seconds (Vercel adapter config). */
+export const config: Config = {
+  maxDuration: 30
+};
 import { privateEnv } from '$lib/server/env';
 import { createSupabaseAdminClient } from '$lib/server/db/supabase';
 import { substituteVariables } from '$lib/server/services/campaigns/variableSubstitution';
