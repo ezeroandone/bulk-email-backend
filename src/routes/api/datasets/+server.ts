@@ -95,5 +95,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     return json({ success: false, error: 'Failed to create dataset.' }, { status: 500 });
   }
 
+  // Insert column metadata into dataset_columns
+  if (d.columns.length > 0) {
+    const columnRows = d.columns.map((col) => ({
+      dataset_id: dataset.id,
+      name: col.name,
+      normalized_name: col.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+      position: col.index,
+      sample_values: col.sample ?? []
+    }));
+
+    // Non-fatal — dataset is still usable if this fails
+    await locals.supabase.from('dataset_columns').insert(columnRows);
+  }
+
   return json({ success: true, data: { dataset } }, { status: 201 });
 };
