@@ -70,10 +70,16 @@ export const actions: Actions = {
     const encryptedPassword = encryptPassword(d.password);
     const encryptedUsername = encryptPassword(d.username);
 
+    // encrypted_credentials is the original NOT NULL column — store as JSON blob
+    // so the constraint is satisfied while we also write the split columns
+    const encryptedCredentials = JSON.stringify({
+      username: encryptedUsername,
+      password: encryptedPassword
+    });
+
     const editId = fd.get('edit_id') as string | null;
 
     if (editId) {
-      // Update existing — never touch the password unless a new one was supplied
       const updatePayload: Record<string, unknown> = {
         name: d.name,
         host: d.host,
@@ -84,7 +90,7 @@ export const actions: Actions = {
         reply_to: d.reply_to || null,
         timeout_ms: d.timeout_ms,
         rate_per_minute: d.rate_per_minute,
-        // Re-encrypt credentials on every edit
+        encrypted_credentials: encryptedCredentials,
         username_encrypted: encryptedUsername,
         password_encrypted: encryptedPassword
       };
@@ -103,6 +109,7 @@ export const actions: Actions = {
         host: d.host,
         port: d.port,
         tls: d.tls,
+        encrypted_credentials: encryptedCredentials,
         username_encrypted: encryptedUsername,
         password_encrypted: encryptedPassword,
         from_name: d.from_name,
