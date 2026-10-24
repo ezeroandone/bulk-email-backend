@@ -130,7 +130,7 @@
 
   <!-- Table -->
   <Card>
-    {#if columns.length === 0}
+    {#if data.rows.length === 0}
       <div class="empty-state">
         <span class="material-symbols-outlined empty-icon">table_rows</span>
         <p>No rows found{data.search ? ' matching your search' : ''}.</p>
@@ -141,19 +141,27 @@
           <thead>
             <tr>
               <th scope="col">#</th>
-              {#each columns as col}
-                <th scope="col">{col.name}</th>
-              {/each}
+              {#if columns.length > 0}
+                {#each columns as col}
+                  <th scope="col">{col.name}</th>
+                {/each}
+              {:else}
+                <!-- Derive columns from first row data keys when dataset_columns not populated -->
+                {#each Object.keys((data.rows[0]?.data as Record<string, unknown>) ?? {}) as key}
+                  <th scope="col">{key}</th>
+                {/each}
+              {/if}
               <th scope="col">Actions</th>
             </tr>
           </thead>
           <tbody>
             {#each data.rows as row (row.id)}
+              {@const rowKeys = columns.length > 0 ? columns.map(c => c.name) : Object.keys((row.data as Record<string, unknown>) ?? {})}
               <tr>
                 <td class="row-num">{row.row_index + 1}</td>
-                {#each columns as col}
+                {#each rowKeys as key}
                   <td class="data-cell">
-                    {String((row.data as Record<string, unknown>)[col.name] ?? '')}
+                    {String((row.data as Record<string, unknown>)[key] ?? '')}
                   </td>
                 {/each}
                 <td>
