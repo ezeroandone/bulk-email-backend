@@ -148,12 +148,10 @@ async function processJob(
 
   const variables: Record<string, string> = (recipient.variables as Record<string, string>) ?? {};
 
-  // 2. Load campaign
+  // 2. Load campaign — all template config lives in config_snapshot
   const { data: campaign } = await admin
     .from('campaigns')
-    .select(
-      'id, subject_template, body_template, mode, smtp_config_id, recipient_email_column, file_match_config, template_id, pdf_field_config'
-    )
+    .select('id, mode, smtp_config_id, config_snapshot')
     .eq('id', campaignId)
     .single();
 
@@ -163,9 +161,11 @@ async function processJob(
     return;
   }
 
+  const snap = (campaign.config_snapshot ?? {}) as Record<string, unknown>;
+
   // 3. Substitute variables in subject and body
-  const subject = substituteVariables(campaign.subject_template as string, variables);
-  const body = substituteVariables(campaign.body_template as string, variables);
+  const subject = substituteVariables((snap.subject_template as string) ?? '', variables);
+  const body = substituteVariables((snap.body_template as string) ?? '', variables);
 
   // 4. Handle attachment based on mode
   let attachment: EmailAttachment | null = null;
@@ -199,7 +199,7 @@ async function processJob(
     }
   } else if (mode === 'B') {
     // Mode B: generate document from template
-    const templateId = campaign.template_id as string | null;
+    const templateId = snap.template_id as string | null;
     if (templateId) {
       const { data: tpl } = await admin
         .from('document_templates')
@@ -224,7 +224,7 @@ async function processJob(
             ext = 'docx';
             contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
           } else if (mime === 'application/pdf') {
-            const fields = (campaign.pdf_field_config as PdfFieldDef[]) ?? [];
+            const fields = (snap.pdf_field_config as PdfFieldDef[]) ?? [];
             genBuf = await generateFromPdfTemplate(tplBuf, fields, variables);
             ext = 'pdf';
             contentType = 'application/pdf';
@@ -319,7 +319,7 @@ async function processJob(
 
     await admin
       .from('campaign_recipients')
-      .update({ status: 'accepted', last_attempt_at: new Date().toISOString(), attempt_count: attemptCount + 1 })
+      .update({ status: 'accepted' })
       .eq('id', recipientId);
 
     stats.accepted++;
@@ -344,7 +344,7 @@ async function processJob(
         .eq('id', jobId);
       await admin
         .from('campaign_recipients')
-        .update({ status: 'failed', last_attempt_at: new Date().toISOString(), attempt_count: attemptCount + 1, error_message: smtpErr.message })
+        .update({ status: 'failed' })
         .eq('id', recipientId);
       stats.failed++;
     } else if (smtpErr.type === 'transient') {
@@ -362,7 +362,7 @@ async function processJob(
           .eq('id', jobId);
         await admin
           .from('campaign_recipients')
-          .update({ status: 'retrying', last_attempt_at: new Date().toISOString(), attempt_count: newAttemptCount, error_message: smtpErr.message })
+          .update({ status: 'retrying' })
           .eq('id', recipientId);
         stats.retrying++;
       } else {
@@ -374,7 +374,7 @@ async function processJob(
           .eq('id', jobId);
         await admin
           .from('campaign_recipients')
-          .update({ status: 'failed', last_attempt_at: new Date().toISOString(), attempt_count: newAttemptCount, error_message: smtpErr.message })
+          .update({ status: 'failed' })
           .eq('id', recipientId);
         stats.failed++;
       }
@@ -404,7 +404,7 @@ async function markFailed(
     .eq('id', jobId);
   await admin
     .from('campaign_recipients')
-    .update({ status: 'failed', last_attempt_at: new Date().toISOString(), attempt_count: attemptCount + 1, error_message: `[${code}] ${message}` })
+    .update({ status: 'failed' })
     .eq('id', recipientId);
 }
 
@@ -423,6 +423,6 @@ async function markUncertain(
     .eq('id', jobId);
   await admin
     .from('campaign_recipients')
-    .update({ status: 'uncertain', last_attempt_at: new Date().toISOString(), attempt_count: attemptCount + 1, error_message: `[${code}] ${message}` })
+    .update({ status: 'uncertain' })
     .eq('id', recipientId);
 }

@@ -36,23 +36,23 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   // Load recipients + delivery job info
   const { data: recipients } = await locals.supabase
     .from('campaign_recipients')
-    .select('id, name, email, status, attempt_count, error_message, last_attempt_at')
+    .select('id, email, status, delivery_jobs(attempt_count, last_error, updated_at)')
     .eq('campaign_id', id)
     .order('id', { ascending: true });
 
   const rows = recipients ?? [];
 
-  const headers = ['Recipient Name', 'Email', 'Status', 'Attempts', 'Last Error', 'Last Attempt'];
+  const headers = ['Email', 'Status', 'Attempts', 'Last Error', 'Last Attempt'];
   const lines: string[] = [headers.map(escapeCsv).join(',')];
 
   for (const r of rows) {
+    const job = (r as { delivery_jobs?: { attempt_count?: number; last_error?: string | null; updated_at?: string } | null }).delivery_jobs;
     const cells = [
-      escapeCsv((r.name as string | null) ?? ''),
       escapeCsv(r.email as string),
       escapeCsv(r.status as string),
-      escapeCsv(String(r.attempt_count ?? 0)),
-      escapeCsv((r.error_message as string | null) ?? ''),
-      escapeCsv(r.last_attempt_at ? new Date(r.last_attempt_at as string).toISOString() : '')
+      escapeCsv(String(job?.attempt_count ?? 0)),
+      escapeCsv(job?.last_error ?? ''),
+      escapeCsv(job?.updated_at ? new Date(job.updated_at).toISOString() : '')
     ];
     lines.push(cells.join(','));
   }

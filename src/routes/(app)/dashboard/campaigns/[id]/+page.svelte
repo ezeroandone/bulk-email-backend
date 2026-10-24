@@ -326,11 +326,11 @@
                 <td>{(r.name as string | null) ?? '—'}</td>
                 <td class="email-col">{r.email as string}</td>
                 <td><StatusBadge status={r.status as string} /></td>
-                <td class="num-col">{r.attempt_count as number}</td>
-                <td class="error-col" title={(r.error_message as string | null) ?? ''}>
-                  {truncate(r.error_message as string | null)}
+                <td class="num-col">{((r as {delivery_jobs?: {attempt_count?: number}|null}).delivery_jobs?.attempt_count ?? 0)}</td>
+                <td class="error-col" title={((r as {delivery_jobs?: {last_error?: string|null}|null}).delivery_jobs?.last_error ?? '')}>
+                  {truncate((r as {delivery_jobs?: {last_error?: string|null}|null}).delivery_jobs?.last_error ?? null)}
                 </td>
-                <td class="date-col">{fmtDate(r.last_attempt_at as string | null)}</td>
+                <td class="date-col">{fmtDate(((r as {delivery_jobs?: {updated_at?: string}|null}).delivery_jobs?.updated_at) ?? null)}</td>
               </tr>
             {/each}
           {/if}

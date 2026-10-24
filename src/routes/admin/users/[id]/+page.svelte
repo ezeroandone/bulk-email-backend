@@ -82,7 +82,6 @@
           {profile.status === 'suspended' ? 'Suspended' : 'Active'}
         </span>
         <span class="meta-text">Joined {fmtDate(profile.created_at)}</span>
-        <span class="meta-text">Last sign-in: {fmtDate(profile.last_sign_in_at)}</span>
       </div>
     </div>
 
@@ -234,7 +233,7 @@
                       <a href="/admin/campaigns" class="campaign-link">{c.name}</a>
                     </td>
                     <td><span class="type-badge">{c.status}</span></td>
-                    <td>{(c.total_recipients ?? 0).toLocaleString()}</td>
+                    <td>{(c.recipient_count ?? 0).toLocaleString()}</td>
                     <td class="date-cell">{fmtDate(c.created_at as string)}</td>
                   </tr>
                 {/each}
@@ -448,7 +447,6 @@
     gap: 1rem;
   }
 
-  .wallet-item {}
   .wallet-label { font-size: var(--font-size-xs); color: var(--color-text-muted); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; }
   .wallet-value { font-size: var(--font-size-xl); font-weight: 700; color: var(--color-text); margin: 0.125rem 0 0; }
 

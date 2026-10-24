@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     admin.from('profiles').select('id', { count: 'exact', head: true }),
     admin.from('campaigns').select('id', { count: 'exact', head: true }),
     admin.from('delivery_jobs').select('id', { count: 'exact', head: true }).in('status', ['queued', 'processing', 'retrying']),
-    admin.from('delivery_jobs').select('id', { count: 'exact', head: true }).in('status', ['sent', 'delivered'])
+    admin.from('delivery_jobs').select('id', { count: 'exact', head: true }).in('status', ['accepted', 'completed'])
   ]);
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();

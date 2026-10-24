@@ -13,21 +13,25 @@ export type CampaignStatus =
   | 'cancelled';
 
 export type DeliveryJobStatus =
-  | 'pending'
+  | 'draft'
+  | 'queued'
   | 'processing'
-  | 'sent'
+  | 'accepted'
   | 'failed'
   | 'retrying'
-  | 'skipped'
-  | 'cancelled';
+  | 'cancelled'
+  | 'uncertain'
+  | 'completed';
 
 export type PaymentStatus =
   | 'pending'
-  | 'success'
+  | 'processing'
+  | 'successful'
   | 'failed'
   | 'abandoned'
   | 'reversed'
-  | 'cancelled';
+  | 'refunded'
+  | 'disputed';
 
 export type DocumentType = 'template' | 'asset';
 export type DocumentFormat = 'docx' | 'pdf' | 'xlsx' | 'csv' | 'txt';

@@ -24,11 +24,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from('campaigns')
     .select('id', { count: 'exact', head: true });
 
-  // Total accepted/sent jobs
+  // Total accepted jobs
   const { count: total_accepted_jobs } = await admin
     .from('delivery_jobs')
     .select('id', { count: 'exact', head: true })
-    .in('status', ['sent', 'delivered']);
+    .in('status', ['accepted', 'completed']);
 
   // Total revenue (kobo)
   const { data: revenueRow } = await admin
@@ -69,7 +69,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const { data: jobsForChart } = await admin
     .from('delivery_jobs')
     .select('updated_at')
-    .in('status', ['sent', 'delivered'])
+    .in('status', ['accepted', 'completed'])
     .gt('updated_at', fourteenDaysAgo);
 
   // Build daily buckets for last 14 days
@@ -90,7 +90,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Recent failed jobs (last 20)
   const { data: recent_failed_jobs } = await admin
     .from('delivery_jobs')
-    .select('id, campaign_id, recipient_email, error_message, updated_at, campaigns(name)')
+    .select('id, campaign_id, last_error, updated_at, campaigns(name)')
     .eq('status', 'failed')
     .order('updated_at', { ascending: false })
     .limit(20);
@@ -121,7 +121,7 @@ export const actions: Actions = {
     const admin = createSupabaseAdminClient();
     const { error } = await admin
       .from('delivery_jobs')
-      .update({ status: 'queued', attempts: 0, error_message: null })
+      .update({ status: 'queued', attempt_count: 0, last_error: null })
       .eq('id', jobId);
 
     if (error) return fail(500, { error: error.message });

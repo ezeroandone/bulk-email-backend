@@ -16,13 +16,13 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Failed / uncertain delivery jobs with errors
   const { data: failedJobs } = await admin
     .from('delivery_jobs')
-    .select('id, campaign_id, recipient_email, error_message, attempts, updated_at, campaigns(name)')
+    .select('id, campaign_id, last_error, attempt_count, updated_at, campaigns(name)')
     .in('status', ['failed', 'cancelled'])
     .order('updated_at', { ascending: false })
     .limit(50);
 
   // Queue health: status counts
-  const statuses = ['queued', 'processing', 'sent', 'failed', 'cancelled', 'delivered'];
+  const statuses = ['queued', 'processing', 'accepted', 'failed', 'cancelled', 'retrying', 'uncertain', 'completed'];
   const queueHealth: Record<string, number> = {};
   await Promise.all(
     statuses.map(async (s) => {

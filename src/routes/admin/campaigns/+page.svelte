@@ -99,7 +99,7 @@
                 </td>
                 <td><span class="type-badge">{c.mode}</span></td>
                 <td><span class="status-badge status-{c.status}">{c.status}</span></td>
-                <td>{(c.total_recipients as number ?? 0).toLocaleString()}</td>
+                <td>{(c.recipient_count as number ?? 0).toLocaleString()}</td>
                 <td class="date-cell">{fmtDate(c.created_at as string)}</td>
               </tr>
             {/each}
@@ -136,15 +136,15 @@
             {#each data.failedJobs as job}
               <tr>
                 <td>{(job as { campaigns?: { name?: string } }).campaigns?.name ?? '—'}</td>
-                <td class="mono">{job.recipient_email ?? '—'}</td>
-                <td class="error-cell" title={job.error_message ?? ''}>
-                  {job.error_message
-                    ? job.error_message.length > 60
-                      ? job.error_message.slice(0, 60) + '…'
-                      : job.error_message
+                <td class="mono">—</td>
+                <td class="error-cell" title={(job as {last_error?: string|null}).last_error ?? ''}>
+                  {(job as {last_error?: string|null}).last_error
+                    ? ((job as {last_error: string}).last_error.length > 60
+                      ? (job as {last_error: string}).last_error.slice(0, 60) + '…'
+                      : (job as {last_error: string}).last_error)
                     : '—'}
                 </td>
-                <td>{job.attempts ?? 0}</td>
+                <td>{(job as {attempt_count?: number}).attempt_count ?? 0}</td>
                 <td class="date-cell">{fmtDateTime(job.updated_at as string)}</td>
               </tr>
             {/each}

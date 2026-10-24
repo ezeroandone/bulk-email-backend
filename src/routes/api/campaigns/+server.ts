@@ -178,14 +178,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       mode: d.mode,
       dataset_id: d.dataset_id,
       smtp_config_id: d.smtp_config_id,
-      subject_template: d.subject_template,
-      body_template: d.body_template,
-      recipient_email_column: d.recipient_email_column,
-      recipient_name_column: d.recipient_name_column ?? null,
-      file_match_config: d.file_match_config ?? null,
-      template_id: d.template_id ?? null,
-      pdf_field_config: d.pdf_field_config ?? null,
-      total_recipients: eligibleRows.length,
+      config_snapshot: {
+        subject_template: d.subject_template,
+        body_template: d.body_template,
+        recipient_email_column: d.recipient_email_column,
+        recipient_name_column: d.recipient_name_column ?? null,
+        file_match_config: d.file_match_config ?? null,
+        template_id: d.template_id ?? null,
+        pdf_field_config: d.pdf_field_config ?? null,
+      },
+      recipient_count: eligibleRows.length,
       credits_reserved: creditRequired
     })
     .select('id')

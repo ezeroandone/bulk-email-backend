@@ -138,9 +138,9 @@
                   </Badge>
                 </td>
                 <td><StatusBadge status={campaign.status} /></td>
-                <td class="num-col">{(campaign.total_recipients ?? 0).toLocaleString()}</td>
-                <td class="num-col count-sent">{(campaign.sent_count ?? 0).toLocaleString()}</td>
-                <td class="num-col count-failed">{(campaign.failed_count ?? 0).toLocaleString()}</td>
+                <td class="num-col">{(campaign.recipient_count ?? 0).toLocaleString()}</td>
+                <td class="num-col count-sent">—</td>
+                <td class="num-col count-failed">—</td>
                 <td class="date-col">{fmtDate(campaign.created_at)}</td>
               </tr>
             {/each}

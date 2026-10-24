@@ -281,9 +281,9 @@
                   </a>
                 </td>
                 <td><StatusBadge status={campaign.status} /></td>
-                <td>{(campaign.total_recipients ?? 0).toLocaleString()}</td>
-                <td class="count-sent">{(campaign.sent_count ?? 0).toLocaleString()}</td>
-                <td class="count-failed">{(campaign.failed_count ?? 0).toLocaleString()}</td>
+                <td>{(campaign.recipient_count ?? 0).toLocaleString()}</td>
+                <td class="count-sent">—</td>
+                <td class="count-failed">—</td>
                 <td class="date-col">{fmtDate(campaign.created_at)}</td>
               </tr>
             {/each}
