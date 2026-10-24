@@ -51,7 +51,7 @@
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const selectedDataset = $derived(data.datasets.find((d) => d.id === datasetId) ?? null);
-  const datasetColumns = $derived<string[]>((selectedDataset?.columns as string[] | null) ?? []);
+  const datasetColumns = $derived<string[]>((selectedDataset?.dataset_columns as {name: string}[] | null)?.map(c => c.name) ?? []);
   const eligibleCount = $derived(
     selectedDataset
       ? Math.max(0, (selectedDataset.row_count as number) - excludedRows.length)

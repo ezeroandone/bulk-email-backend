@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const { data: datasets } = await locals.supabase
     .from('datasets')
-    .select('id, name, column_count, email_column')
+    .select('id, name, column_count, email_column, dataset_columns(id, name, normalized_name)')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false });
 

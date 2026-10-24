@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   // Fetch dataset header
   const { data: dataset } = await locals.supabase
     .from('datasets')
-    .select('id, name, row_count, column_count, columns, original_filename, created_at')
+    .select('id, name, row_count, column_count, email_column, original_filename, created_at, dataset_columns(id, name, normalized_name, position)')
     .eq('id', id)
     .eq('user_id', session.user.id)
     .maybeSingle();

@@ -24,7 +24,7 @@
 
   // Build column list from the first dataset (or empty)
   const columns = $derived<string[]>(
-    data.datasets[0]?.columns?.map((c: { name: string }) => c.name) ?? []
+    data.datasets[0]?.dataset_columns?.map((c: { name: string }) => c.name) ?? []
   );
 
   // Convert DB fields to PdfFieldDef

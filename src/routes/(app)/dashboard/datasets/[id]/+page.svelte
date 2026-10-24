@@ -12,13 +12,14 @@
   }
 
   interface DatasetColumn {
-    index: number;
+    id: string;
     name: string;
-    sample?: string[];
+    normalized_name: string;
+    position: number;
   }
 
   let columns = $derived(
-    (data.dataset.columns as DatasetColumn[] | null) ?? []
+    (data.dataset.dataset_columns as DatasetColumn[] | null) ?? []
   );
 
   // Edit modal

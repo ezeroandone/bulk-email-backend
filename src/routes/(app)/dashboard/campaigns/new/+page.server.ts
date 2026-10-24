@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const [{ data: datasets }, { data: smtpConfigs }, { data: templates }] = await Promise.all([
     locals.supabase
       .from('datasets')
-      .select('id, name, row_count, column_count, email_column')
+      .select('id, name, row_count, column_count, email_column, dataset_columns(id, name, normalized_name)')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false }),
 

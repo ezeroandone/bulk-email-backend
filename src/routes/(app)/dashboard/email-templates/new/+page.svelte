@@ -12,7 +12,7 @@
   let saving = $state(false);
 
   const allColumns = $derived<string[]>(
-    data.datasets.flatMap((ds) => (ds.columns as string[] | null) ?? [])
+    data.datasets.flatMap((ds) => (ds.dataset_columns as {name: string}[] | null)?.map(c => c.name) ?? [])
       .filter((c, i, arr) => arr.indexOf(c) === i)
   );
 

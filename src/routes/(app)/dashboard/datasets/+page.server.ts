@@ -73,12 +73,9 @@ export const actions: Actions = {
       user_id: session.user.id,
       name: `${original.name} (copy)`,
       original_filename: original.original_filename,
-      storage_path: original.storage_path,
-      mime_type: original.mime_type,
       row_count: original.row_count,
       column_count: original.column_count,
-      columns: original.columns,
-      preview_rows: original.preview_rows
+      status: 'ready'
     });
 
     if (error) return fail(500, { message: 'Failed to duplicate dataset.' });
