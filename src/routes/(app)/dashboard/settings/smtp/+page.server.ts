@@ -11,7 +11,8 @@ const SmtpSaveSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535),
   tls: z.enum(['ssl', 'starttls', 'none']),
   username: z.string().min(1, 'Username is required').max(320),
-  password: z.string().min(1, 'Password is required').max(512),
+  // password optional on edit (empty = keep existing); required on create
+  password: z.string().max(512).default(''),
   from_name: z.string().min(1, 'Sender name is required').max(100),
   from_email: z.string().email('Invalid sender email').max(320),
   reply_to: z.string().email('Invalid reply-to email').max(320).optional().or(z.literal('')),
@@ -58,6 +59,16 @@ export const actions: Actions = {
     }
 
     const d = parsed.data;
+    const editId = fd.get('edit_id') as string | null;
+
+    // Strip spaces from app passwords (Gmail shows them with spaces for readability)
+    const cleanPassword = d.password.replace(/\s+/g, '');
+    const cleanUsername = d.username.trim();
+
+    // Password required on create
+    if (!editId && !cleanPassword) {
+      return fail(422, { errors: { password: ['Password is required.'] } });
+    }
 
     // SSRF guard
     try {
@@ -67,19 +78,10 @@ export const actions: Actions = {
       return fail(422, { errors: { host: [msg] } });
     }
 
-    const encryptedPassword = encryptPassword(d.password);
-    const encryptedUsername = encryptPassword(d.username);
-
-    // encrypted_credentials is the original NOT NULL column — store as JSON blob
-    // so the constraint is satisfied while we also write the split columns
-    const encryptedCredentials = JSON.stringify({
-      username: encryptedUsername,
-      password: encryptedPassword
-    });
-
-    const editId = fd.get('edit_id') as string | null;
+    const encryptedUsername = encryptPassword(cleanUsername);
 
     if (editId) {
+      // ── UPDATE ──────────────────────────────────────────────────────────────
       const updatePayload: Record<string, unknown> = {
         name: d.name,
         host: d.host,
@@ -90,10 +92,33 @@ export const actions: Actions = {
         reply_to: d.reply_to || null,
         timeout_ms: d.timeout_ms,
         rate_per_minute: d.rate_per_minute,
-        encrypted_credentials: encryptedCredentials,
-        username_encrypted: encryptedUsername,
-        password_encrypted: encryptedPassword
+        username_encrypted: encryptedUsername
       };
+
+      if (cleanPassword) {
+        // New password provided — re-encrypt everything
+        const encryptedPassword = encryptPassword(cleanPassword);
+        updatePayload.password_encrypted = encryptedPassword;
+        updatePayload.encrypted_credentials = JSON.stringify({
+          username: encryptedUsername,
+          password: encryptedPassword
+        });
+      } else {
+        // No new password — keep existing password_encrypted, rebuild blob with new username
+        const { data: existing } = await locals.supabase
+          .from('smtp_configurations')
+          .select('password_encrypted')
+          .eq('id', editId)
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (existing?.password_encrypted) {
+          updatePayload.encrypted_credentials = JSON.stringify({
+            username: encryptedUsername,
+            password: existing.password_encrypted as string
+          });
+        }
+      }
 
       const { error } = await locals.supabase
         .from('smtp_configurations')
@@ -103,6 +128,13 @@ export const actions: Actions = {
 
       if (error) return fail(500, { message: 'Failed to update SMTP configuration.' });
     } else {
+      // ── INSERT ──────────────────────────────────────────────────────────────
+      const encryptedPassword = encryptPassword(cleanPassword);
+      const encryptedCredentials = JSON.stringify({
+        username: encryptedUsername,
+        password: encryptedPassword
+      });
+
       const { error } = await locals.supabase.from('smtp_configurations').insert({
         user_id: session.user.id,
         name: d.name,

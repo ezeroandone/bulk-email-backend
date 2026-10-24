@@ -102,11 +102,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       .eq('user_id', session.user.id);
 
     // Sanitize the error — don't echo back server internals
-    const safeMessage = message.includes('Invalid login') || message.includes('535')
-      ? 'Authentication failed. Check your username and password.'
-      : message.includes('connect')
-        ? 'Could not connect to the SMTP server. Check host and port.'
-        : 'Connection failed. Verify your SMTP settings.';
+    const lc = message.toLowerCase();
+    const safeMessage =
+      lc.includes('invalid login') || lc.includes('535') || lc.includes('authentication') || lc.includes('username and password')
+        ? 'Authentication failed. For Gmail, use an App Password (not your Google account password). Generate one at myaccount.google.com/apppasswords.'
+        : lc.includes('connect') || lc.includes('econnrefused') || lc.includes('etimedout')
+          ? 'Could not connect to the SMTP server. Check host and port.'
+          : lc.includes('certificate') || lc.includes('ssl') || lc.includes('tls')
+            ? 'TLS/SSL error. Try a different encryption setting.'
+            : 'Connection failed. Verify your SMTP settings.';
 
     return json({ success: false, message: safeMessage });
   } finally {
