@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   // Fetch template
   const { data: template, error: tplError } = await locals.supabase
     .from('document_templates')
-    .select('id, format, mime_type, storage_path')
+    .select('id, type, storage_path')
     .eq('id', params.id)
     .eq('user_id', session.user.id)
     .single();
@@ -75,10 +75,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   let mimeType: string;
 
   try {
-    if (template.format === 'docx') {
+    if (template.type === 'docx') {
       resultBuffer = await generateDocx(fileBuffer, variables);
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    } else if (template.format === 'pdf') {
+    } else if (template.type === 'pdf') {
       const fields: PdfFieldDef[] = (fieldRows ?? []).map((f: {
         id: string;
         variable: string;
@@ -102,7 +102,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       }));
       resultBuffer = await generateFromPdfTemplate(fileBuffer, fields, variables);
       mimeType = 'application/pdf';
-    } else if (IMAGE_FORMATS.has(template.format)) {
+    } else if (template.type === 'image') {
       const fields: PdfFieldDef[] = (fieldRows ?? []).map((f: {
         id: string;
         variable: string;
@@ -125,8 +125,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
         pageIndex: f.page_index
       }));
       // Use the stored format, or auto-detect from magic bytes as fallback
-      const imageType: ImageFormat =
-        (IMAGE_FORMATS.has(template.format) ? template.format : detectImageFormat(fileBuffer) ?? 'png') as ImageFormat;
+      const imageType: ImageFormat = (detectImageFormat(fileBuffer) ?? 'png') as ImageFormat;
       resultBuffer = await generateFromImage(
         fileBuffer,
         imageType,
@@ -136,7 +135,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       );
       mimeType = 'application/pdf';
     } else {
-      return json({ success: false, error: `Unsupported template format: ${template.format}` }, { status: 400 });
+      return json({ success: false, error: `Unsupported template type: ${template.type}` }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Generation failed';

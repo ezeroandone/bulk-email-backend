@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   // Load the user's datasets so they can pick column names
   const { data: datasets } = await locals.supabase
     .from('datasets')
-    .select('id, name, columns')
+    .select('id, name, columns, dataset_columns(id, name, normalized_name, position)')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
     .limit(20);

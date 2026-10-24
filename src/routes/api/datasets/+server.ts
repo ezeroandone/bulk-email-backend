@@ -85,12 +85,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       user_id: session.user.id,
       name: d.name,
       original_filename: d.original_filename ?? d.name,
-      storage_path: d.storage_path,
-      mime_type: d.mime_type,
       row_count: d.row_count,
       column_count: d.column_count,
-      columns: d.columns,
-      preview_rows: d.preview_rows
+      status: 'ready'
     })
     .select('id, name, row_count, column_count, created_at')
     .single();

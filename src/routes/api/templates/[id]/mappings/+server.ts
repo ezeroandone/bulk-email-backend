@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   // Verify template ownership
   const { data: template } = await locals.supabase
     .from('document_templates')
-    .select('id, format')
+    .select('id, type')
     .eq('id', params.id)
     .eq('user_id', session.user.id)
     .single();
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     return json({ success: false, error: 'Failed to load field definitions.' }, { status: 500 });
   }
 
-  return json({ success: true, data: { fields: fields ?? [], format: template.format } });
+  return json({ success: true, data: { fields: fields ?? [], format: template.type } });
 };
 
 // ── PUT ───────────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
   // Verify template ownership
   const { data: template } = await locals.supabase
     .from('document_templates')
-    .select('id, format')
+    .select('id, type')
     .eq('id', params.id)
     .eq('user_id', session.user.id)
     .single();
