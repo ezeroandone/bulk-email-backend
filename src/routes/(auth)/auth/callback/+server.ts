@@ -3,21 +3,31 @@ import type { RequestHandler } from './$types';
 import { initializeNewUser } from '$lib/server/auth/callback';
 
 /**
- * Handle the PKCE OAuth callback from Supabase / Google.
- * Exchanges the `code` query param for a session, initializes new users,
- * then redirects to the appropriate destination.
+ * Handle OAuth callbacks.
+ *
+ * PKCE flow: Supabase redirects here with ?code=... — exchange for session.
+ * Implicit flow: Supabase redirects here with #access_token=... — the
+ *   +page.svelte handles this client-side since server can't read fragments.
  */
 export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
-  const code = url.searchParams.get('code');
-
-  if (!code) {
-    redirect(302, '/login?error=auth_failed');
+  // Surface any error from the OAuth provider
+  const error = url.searchParams.get('error');
+  if (error) {
+    const desc = url.searchParams.get('error_description') ?? error;
+    redirect(302, `/login?error=${encodeURIComponent(desc)}`);
   }
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  const code = url.searchParams.get('code');
 
-  if (error || !data.session) {
-    console.error('[auth/callback] exchangeCodeForSession error:', error?.message);
+  // No code = implicit flow, let the +page.svelte handle it
+  if (!code) {
+    return new Response(null, { status: 200 });
+  }
+
+  const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (exchangeError || !data.session) {
+    console.error('[auth/callback] exchangeCodeForSession error:', exchangeError?.message);
     redirect(302, '/login?error=auth_failed');
   }
 
@@ -33,7 +43,6 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
     isNew = result.isNew;
   } catch (err) {
     console.error('[auth/callback] initializeNewUser error:', err);
-    // Don't block sign-in if initialization fails — user can still access the app.
   }
 
   redirect(302, isNew ? '/dashboard/onboarding' : '/dashboard');
