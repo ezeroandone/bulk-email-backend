@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Recent campaigns (last 5)
   const { data: campaigns } = await locals.supabase
     .from('campaigns')
-    .select('id, name, status, total_recipients, sent_count, failed_count, created_at')
+    .select('id, name, status, recipient_count, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(5);
@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId);
 
-  // Emails accepted this month (delivery_jobs with status accepted/sent)
+  // Emails accepted this month
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
@@ -28,10 +28,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from('delivery_jobs')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .in('status', ['accepted', 'sent'])
+    .in('status', ['accepted'])
     .gte('created_at', startOfMonth.toISOString());
 
-  // Last 7 days: emails sent grouped by date
+  // Last 7 days: delivery jobs grouped by date
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from('delivery_jobs')
     .select('created_at, status')
     .eq('user_id', userId)
-    .in('status', ['accepted', 'sent', 'failed'])
+    .in('status', ['accepted', 'failed'])
     .gte('created_at', sevenDaysAgo.toISOString());
 
   // Build daily buckets
@@ -55,7 +55,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const key = (job.created_at as string).slice(0, 10);
     const bucket = dailyMap.get(key);
     if (bucket) {
-      if (job.status === 'accepted' || job.status === 'sent') bucket.sent++;
+      if (job.status === 'accepted') bucket.sent++;
       else if (job.status === 'failed') bucket.failed++;
     }
   }

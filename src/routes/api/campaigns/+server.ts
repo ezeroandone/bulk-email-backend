@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   let query = locals.supabase
     .from('campaigns')
     .select(
-      'id, name, status, mode, total_recipients, sent_count, failed_count, created_at',
+      'id, name, status, mode, recipient_count, created_at',
       { count: 'exact' }
     )
     .eq('user_id', session.user.id)

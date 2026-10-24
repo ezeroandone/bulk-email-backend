@@ -19,10 +19,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     .from('campaigns')
     .select(`
       id, name, status, mode,
-      dataset_id, smtp_config_id, template_id,
-      subject_template, body_template,
-      recipient_email_column, recipient_name_column,
-      total_recipients, sent_count, failed_count, skipped_count,
+      dataset_id, smtp_config_id,
+      config_snapshot,
+      recipient_count,
       credits_reserved,
       created_at, started_at, completed_at
     `)

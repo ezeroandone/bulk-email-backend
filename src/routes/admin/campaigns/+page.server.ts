@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   // All campaigns with user name
   const { data: campaigns } = await admin
     .from('campaigns')
-    .select('id, name, mode, status, total_recipients, created_at, user_id, profiles(full_name, email)')
+    .select('id, name, mode, status, recipient_count, created_at, user_id, profiles(full_name, email)')
     .order('created_at', { ascending: false })
     .limit(100);
 

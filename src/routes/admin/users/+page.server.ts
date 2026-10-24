@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   let query = admin
     .from('profiles')
     .select(
-      `id, email, full_name, role, status, created_at, last_sign_in_at,
+      `id, email, full_name, role, status, created_at,
        credit_wallets(available_credits)`
     )
     .order('created_at', { ascending: false });
@@ -46,7 +46,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       role: string;
       status: string | null;
       created_at: string;
-      last_sign_in_at: string | null;
       credit_wallets: { available_credits: number } | { available_credits: number }[] | null;
     }) => ({
       ...u,

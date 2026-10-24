@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from('profiles')
-    .select('id, email, full_name, role, status, created_at, last_sign_in_at, avatar_url')
+    .select('id, email, full_name, role, status, created_at, avatar_url')
     .eq('id', params.id)
     .maybeSingle();
 

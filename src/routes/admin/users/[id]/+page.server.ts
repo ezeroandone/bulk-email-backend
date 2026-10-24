@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, email, full_name, role, status, created_at, last_sign_in_at, avatar_url')
+    .select('id, email, full_name, role, status, created_at, avatar_url')
     .eq('id', targetId)
     .maybeSingle();
 
@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const { data: campaigns } = await admin
     .from('campaigns')
-    .select('id, name, status, total_recipients, created_at')
+    .select('id, name, status, recipient_count, created_at')
     .eq('user_id', targetId)
     .order('created_at', { ascending: false })
     .limit(5);

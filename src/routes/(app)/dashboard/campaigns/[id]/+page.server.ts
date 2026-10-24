@@ -9,9 +9,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     .from('campaigns')
     .select(`
       id, name, status, mode,
-      subject_template, body_template,
-      recipient_email_column, recipient_name_column,
-      total_recipients, sent_count, failed_count, skipped_count,
+      config_snapshot,
+      recipient_count,
       credits_reserved, created_at, started_at, completed_at
     `)
     .eq('id', params.id)

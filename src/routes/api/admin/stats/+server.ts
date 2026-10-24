@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ locals }) => {
   const { count: active_users_30d } = await admin
     .from('profiles')
     .select('id', { count: 'exact', head: true })
-    .gt('last_sign_in_at', thirtyDaysAgo);
+    .gt('updated_at', thirtyDaysAgo);
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: failed_jobs_24h } = await admin

@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   let query = locals.supabase
     .from('campaigns')
     .select(
-      'id, name, status, mode, total_recipients, sent_count, failed_count, created_at'
+      'id, name, status, mode, recipient_count, created_at'
     )
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false });

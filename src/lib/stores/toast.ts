@@ -1,3 +1,6 @@
+// Toast store using a plain writable-style approach so it works both
+// inside Svelte components and in module scope (no $state at top level).
+
 export interface ToastItem {
   id: string;
   message: string;
@@ -5,8 +8,21 @@ export interface ToastItem {
   duration: number;
 }
 
+type Subscriber = (toasts: ToastItem[]) => void;
+
 function createToastStore() {
-  let toasts = $state<ToastItem[]>([]);
+  let toasts: ToastItem[] = [];
+  const subscribers = new Set<Subscriber>();
+
+  function notify() {
+    subscribers.forEach((fn) => fn(toasts));
+  }
+
+  function subscribe(fn: Subscriber): () => void {
+    subscribers.add(fn);
+    fn(toasts);
+    return () => subscribers.delete(fn);
+  }
 
   function addToast(
     message: string,
@@ -15,21 +31,17 @@ function createToastStore() {
   ): string {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     toasts = [...toasts, { id, message, type, duration }];
+    notify();
     return id;
   }
 
   function removeToast(id: string) {
     toasts = toasts.filter((t) => t.id !== id);
+    notify();
   }
 
-  return {
-    get toasts() {
-      return toasts;
-    },
-    addToast,
-    removeToast
-  };
+  return { subscribe, addToast, removeToast };
 }
 
 export const toastStore = createToastStore();
-export const { addToast } = toastStore;
+export const addToast = toastStore.addToast.bind(toastStore);

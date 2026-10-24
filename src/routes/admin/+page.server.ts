@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const { count: active_users_30d } = await admin
     .from('profiles')
     .select('id', { count: 'exact', head: true })
-    .gt('last_sign_in_at', thirtyDaysAgo);
+    .gt('updated_at', thirtyDaysAgo);
 
   // Total campaigns
   const { count: total_campaigns } = await admin

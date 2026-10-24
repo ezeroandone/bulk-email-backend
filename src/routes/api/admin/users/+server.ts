@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   let query = admin
     .from('profiles')
-    .select('id, email, full_name, role, status, created_at, last_sign_in_at')
+    .select('id, email, full_name, role, status, created_at')
     .order('created_at', { ascending: false })
     .limit(200);
 
