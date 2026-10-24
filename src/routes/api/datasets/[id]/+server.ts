@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
   const { data, error } = await locals.supabase
     .from('datasets')
-    .select('id, name, original_filename, mime_type, row_count, column_count, columns, preview_rows, created_at, updated_at')
+    .select('id, name, original_filename, row_count, column_count, email_column, status, metadata, created_at, updated_at')
     .eq('id', id)
     .eq('user_id', session.user.id)
     .single();
@@ -45,23 +45,16 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
   const { id } = params;
 
-  // Fetch dataset first to get storage path for cleanup
+  // Fetch dataset first to verify ownership
   const { data: existing, error: fetchErr } = await locals.supabase
     .from('datasets')
-    .select('id, storage_path, user_id')
+    .select('id')
     .eq('id', id)
     .eq('user_id', session.user.id)
     .single();
 
   if (fetchErr || !existing) {
     return json({ success: false, error: 'Dataset not found.' }, { status: 404 });
-  }
-
-  // Remove stored file if present
-  if (existing.storage_path) {
-    await locals.supabase.storage
-      .from('datasets')
-      .remove([existing.storage_path]);
   }
 
   const { error } = await locals.supabase

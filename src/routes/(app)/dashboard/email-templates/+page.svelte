@@ -59,9 +59,9 @@
                 <td class="name-cell">
                   <a href="/dashboard/email-templates/{tpl.id}" class="tpl-link">{tpl.name}</a>
                 </td>
-                <td class="subject-cell">{tpl.subject_template}</td>
+                <td class="subject-cell">{tpl.subject}</td>
                 <td>
-                  <Badge variant="neutral">{tpl.is_html ? 'HTML' : 'Plain Text'}</Badge>
+                  <Badge variant="neutral">Email</Badge>
                 </td>
                 <td class="date-col">{fmtDate(tpl.created_at)}</td>
                 <td>

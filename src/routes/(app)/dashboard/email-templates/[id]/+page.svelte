@@ -6,9 +6,9 @@
   let { data, form }: PageProps = $props();
 
   let name = $state(data.template.name as string);
-  let subject = $state(data.template.subject_template as string);
-  let body = $state(data.template.body_template as string);
-  let isHtml = $state(data.template.is_html as boolean);
+  let subject = $state(data.template.subject as string);
+  let body = $state((data.template.body_html ?? '') as string);
+  let isHtml = $state(true); // body_html is always treated as HTML; plain-text stored in body_text
   let saving = $state(false);
   let showDeleteConfirm = $state(false);
 
@@ -96,8 +96,7 @@
       };
     }}
   >
-    <input type="hidden" name="is_html" value={isHtml ? 'true' : 'false'} />
-    <input type="hidden" name="body_template" value={body} />
+    <input type="hidden" name="body_html" value={body} />
 
     <Card>
       <div class="form-section">
@@ -122,7 +121,7 @@
           <div class="input-with-picker">
             <input
               id="tpl-subject"
-              name="subject_template"
+              name="subject"
               type="text"
               class="field-input"
               bind:value={subject}

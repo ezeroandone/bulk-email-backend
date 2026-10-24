@@ -67,8 +67,7 @@
       };
     }}
   >
-    <input type="hidden" name="is_html" value={isHtml ? 'true' : 'false'} />
-    <input type="hidden" name="body_template" value={body} />
+    <input type="hidden" name="body_html" value={body} />
 
     <Card>
       <div class="form-section">
@@ -96,7 +95,7 @@
           <div class="input-with-picker">
             <input
               id="tpl-subject"
-              name="subject_template"
+              name="subject"
               type="text"
               class="field-input"
               placeholder={'e.g. Your certificate, {{first_name}}'}

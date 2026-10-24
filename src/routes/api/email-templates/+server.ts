@@ -9,9 +9,9 @@ import type { RequestHandler } from './$types';
 
 const CreateSchema = z.object({
   name: z.string().min(1).max(200),
-  subject_template: z.string().min(1).max(998),
-  body_template: z.string().min(1),
-  is_html: z.boolean().default(true)
+  subject: z.string().min(1).max(998),
+  body_html: z.string().min(1),
+  body_text: z.string().optional()
 });
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   const { data, error } = await locals.supabase
     .from('email_templates')
-    .select('id, name, subject_template, is_html, created_at')
+    .select('id, name, subject, created_at')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false });
 
@@ -66,11 +66,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     .insert({
       user_id: session.user.id,
       name: d.name,
-      subject_template: d.subject_template,
-      body_template: d.body_template,
-      is_html: d.is_html
+      subject: d.subject,
+      body_html: d.body_html,
+      body_text: d.body_text ?? null
     })
-    .select('id, name, subject_template, is_html, created_at')
+    .select('id, name, subject, created_at')
     .single();
 
   if (error || !tmpl) {

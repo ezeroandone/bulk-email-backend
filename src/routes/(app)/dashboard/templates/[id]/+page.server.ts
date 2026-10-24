@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const { data: template, error: dbError } = await locals.supabase
     .from('document_templates')
-    .select('id, name, description, format, type, mime_type, storage_path, file_size, placeholders, created_at, updated_at')
+    .select('id, name, type, storage_path, placeholders, metadata, created_at, updated_at')
     .eq('id', params.id)
     .eq('user_id', session.user.id)
     .single();

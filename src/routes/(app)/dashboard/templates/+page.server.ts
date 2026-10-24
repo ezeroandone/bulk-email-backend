@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const { data: templates } = await locals.supabase
     .from('document_templates')
-    .select('id, name, description, format, type, file_size, placeholder_count, created_at')
+    .select('id, name, type, storage_path, placeholders, created_at')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false });
 

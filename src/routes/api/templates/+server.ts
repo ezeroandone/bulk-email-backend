@@ -5,9 +5,9 @@ import type { RequestHandler } from './$types';
 
 const CreateSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200),
-  subject_template: z.string().min(1, 'Subject is required').max(998),
-  body_template: z.string().min(1, 'Body is required').max(1_000_000),
-  is_html: z.boolean().default(false)
+  subject: z.string().min(1, 'Subject is required').max(998),
+  body_html: z.string().min(1, 'Body is required').max(1_000_000),
+  body_text: z.string().optional()
 });
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   const { data, count, error } = await locals.supabase
     .from('email_templates')
-    .select('id, name, subject_template, is_html, created_at', { count: 'exact' })
+    .select('id, name, subject, created_at', { count: 'exact' })
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
     .range(offset, offset + pageSize - 1);
@@ -76,11 +76,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     .insert({
       user_id: session.user.id,
       name: d.name,
-      subject_template: d.subject_template,
-      body_template: d.body_template,
-      is_html: d.is_html
+      subject: d.subject,
+      body_html: d.body_html,
+      body_text: d.body_text ?? null
     })
-    .select('id, name, subject_template, is_html, created_at')
+    .select('id, name, subject, created_at')
     .single();
 
   if (error) {

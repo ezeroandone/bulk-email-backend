@@ -165,7 +165,7 @@ async function processJob(
 
   // 3. Substitute variables in subject and body
   const subject = substituteVariables((snap.subject_template as string) ?? '', variables);
-  const body = substituteVariables((snap.body_template as string) ?? '', variables);
+  const body = substituteVariables((snap.body_html as string) ?? '', variables);
 
   // 4. Handle attachment based on mode
   let attachment: EmailAttachment | null = null;
@@ -203,7 +203,7 @@ async function processJob(
     if (templateId) {
       const { data: tpl } = await admin
         .from('document_templates')
-        .select('storage_path, mime_type, original_filename')
+        .select('storage_path, type, name')
         .eq('id', templateId)
         .single();
 
@@ -214,16 +214,16 @@ async function processJob(
 
         if (tplFile) {
           const tplBuf = Buffer.from(await tplFile.arrayBuffer());
-          const mime = tpl.mime_type as string;
+          const tplType = tpl.type as string; // 'docx' | 'pdf' | 'image'
           let genBuf: Buffer;
           let ext: string;
           let contentType: string;
 
-          if (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          if (tplType === 'docx') {
             genBuf = await generateDocx(tplBuf, variables);
             ext = 'docx';
             contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          } else if (mime === 'application/pdf') {
+          } else if (tplType === 'pdf') {
             const fields = (snap.pdf_field_config as PdfFieldDef[]) ?? [];
             genBuf = await generateFromPdfTemplate(tplBuf, fields, variables);
             ext = 'pdf';
@@ -242,7 +242,7 @@ async function processJob(
           });
 
           attachment = {
-            filename: `${(tpl.original_filename as string).replace(/\.[^.]+$/, '')}.${ext}`,
+            filename: `${(tpl.name as string).replace(/\.[^.]+$/, '')}.${ext}`,
             content: genBuf,
             contentType
           };

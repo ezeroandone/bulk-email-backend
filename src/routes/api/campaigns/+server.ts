@@ -15,7 +15,7 @@ const CreateCampaignSchema = z.object({
   dataset_id: z.string().uuid(),
   smtp_config_id: z.string().uuid(),
   subject_template: z.string().min(1).max(998),
-  body_template: z.string().min(1),
+  body_html: z.string().min(1),
   recipient_email_column: z.string().min(1),
   recipient_name_column: z.string().optional(),
   /** Mode A: file match config JSON */
@@ -180,7 +180,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       smtp_config_id: d.smtp_config_id,
       config_snapshot: {
         subject_template: d.subject_template,
-        body_template: d.body_template,
+        body_html: d.body_html,
         recipient_email_column: d.recipient_email_column,
         recipient_name_column: d.recipient_name_column ?? null,
         file_match_config: d.file_match_config ?? null,

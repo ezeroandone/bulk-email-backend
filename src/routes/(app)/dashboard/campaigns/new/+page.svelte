@@ -176,7 +176,7 @@
           dataset_id: datasetId,
           smtp_config_id: smtpId,
           subject_template: subject.trim(),
-          body_template: body.trim(),
+          body_html: body.trim(),
           recipient_email_column: recipientEmailCol,
           recipient_name_column: recipientNameCol || undefined,
           template_id: templateId || undefined,
@@ -439,7 +439,7 @@
                 <select id="template-select" class="field-select" bind:value={templateId}>
                   <option value="">Select a template…</option>
                   {#each data.templates as t (t.id)}
-                    <option value={t.id}>{t.name} ({t.format})</option>
+                    <option value={t.id}>{t.name} ({t.type})</option>
                   {/each}
                 </select>
               </div>

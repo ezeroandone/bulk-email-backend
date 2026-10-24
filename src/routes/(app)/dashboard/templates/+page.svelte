@@ -4,23 +4,14 @@
 
   let { data }: PageProps = $props();
 
-  function fmtSize(bytes: number | null): string {
-    if (!bytes) return '—';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1048576).toFixed(2)} MB`;
-  }
-
   function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  const formatLabel: Record<string, string> = {
+  const typeLabel: Record<string, string> = {
     docx: 'Word',
     pdf: 'PDF',
-    xlsx: 'Excel',
-    csv: 'CSV',
-    txt: 'Text'
+    image: 'Image'
   };
 </script>
 
@@ -66,22 +57,15 @@
             <div class="tpl-info">
               <div class="tpl-name-row">
                 <h3 class="tpl-name">{tpl.name}</h3>
-                <Badge variant="neutral">{formatLabel[tpl.format] ?? tpl.format}</Badge>
+                <Badge variant="neutral">{typeLabel[tpl.type] ?? tpl.type}</Badge>
               </div>
-              {#if tpl.description}
-                <p class="tpl-desc">{tpl.description}</p>
-              {/if}
               <div class="tpl-meta">
-                {#if tpl.placeholder_count != null}
+                {#if tpl.placeholders?.length}
                   <span class="meta-item">
                     <span class="material-symbols-outlined">data_object</span>
-                    {tpl.placeholder_count} placeholders
+                    {tpl.placeholders.length} placeholders
                   </span>
                 {/if}
-                <span class="meta-item">
-                  <span class="material-symbols-outlined">straighten</span>
-                  {fmtSize(tpl.file_size)}
-                </span>
                 <span class="meta-item">
                   <span class="material-symbols-outlined">calendar_today</span>
                   {fmtDate(tpl.created_at)}

@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const { data: template, error: dbError } = await locals.supabase
     .from('email_templates')
-    .select('id, name, subject_template, body_template, is_html, created_at, updated_at')
+    .select('id, name, subject, body_html, body_text, created_at, updated_at')
     .eq('id', params.id)
     .eq('user_id', session.user.id)
     .maybeSingle();
@@ -34,17 +34,16 @@ export const actions: Actions = {
     const fd = await request.formData();
 
     const name = (fd.get('name') as string)?.trim();
-    const subject_template = (fd.get('subject_template') as string)?.trim();
-    const body_template = (fd.get('body_template') as string)?.trim();
-    const is_html = fd.get('is_html') === 'true';
+    const subject = (fd.get('subject') as string)?.trim();
+    const body_html = (fd.get('body_html') as string)?.trim();
 
-    if (!name || !subject_template || !body_template) {
+    if (!name || !subject || !body_html) {
       return { error: 'Name, subject, and body are required.' };
     }
 
     const { error: dbError } = await locals.supabase
       .from('email_templates')
-      .update({ name, subject_template, body_template, is_html })
+      .update({ name, subject, body_html })
       .eq('id', params.id)
       .eq('user_id', session.user.id);
 
@@ -74,9 +73,9 @@ export const actions: Actions = {
       .insert({
         user_id: session.user.id,
         name: `${original.name} (copy)`,
-        subject_template: original.subject_template,
-        body_template: original.body_template,
-        is_html: original.is_html
+        subject: original.subject,
+        body_html: original.body_html,
+        body_text: original.body_text ?? null
       })
       .select('id')
       .single();

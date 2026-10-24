@@ -15,9 +15,9 @@
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const isDocx = $derived(data.template.format === 'docx');
-  const isPdf  = $derived(data.template.format === 'pdf');
-  const isImage = $derived(['png', 'jpg', 'jpeg'].includes(data.template.format ?? ''));
+  const isDocx = $derived(data.template.type === 'docx');
+  const isPdf  = $derived(data.template.type === 'pdf');
+  const isImage = $derived(data.template.type === 'image');
 
   const showPdfEditor  = $derived(isPdf || isImage);
   const showDocxEditor = $derived(isDocx);
@@ -68,23 +68,16 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function fmtSize(bytes: number | null): string {
-    if (!bytes) return '—';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1048576).toFixed(2)} MB`;
-  }
-
   function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric'
     });
   }
 
-  const formatLabel: Record<string, string> = {
-    docx: 'Word (.docx)', pdf: 'PDF',
-    png: 'PNG Image', jpg: 'JPEG Image', jpeg: 'JPEG Image',
-    webp: 'WebP Image', gif: 'GIF Image', tiff: 'TIFF Image', tif: 'TIFF Image', bmp: 'BMP Image'
+  const typeLabel: Record<string, string> = {
+    docx: 'Word (.docx)',
+    pdf: 'PDF',
+    image: 'Image'
   };
 
   // ── Save PDF fields ────────────────────────────────────────────────────────
@@ -158,15 +151,8 @@
         </div>
         <div>
           <h1 class="page-title">{data.template.name}</h1>
-          {#if data.template.description}
-            <p class="page-subtitle">{data.template.description}</p>
-          {/if}
           <div class="template-meta">
-            <Badge variant="neutral">{formatLabel[data.template.format] ?? data.template.format}</Badge>
-            <span class="meta-item">
-              <span class="material-symbols-outlined" aria-hidden="true">straighten</span>
-              {fmtSize(data.template.file_size)}
-            </span>
+            <Badge variant="neutral">{typeLabel[data.template.type] ?? data.template.type}</Badge>
             <span class="meta-item">
               <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
               {fmtDate(data.template.created_at)}

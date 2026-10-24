@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const { data: templates } = await locals.supabase
     .from('email_templates')
-    .select('id, name, subject_template, is_html, created_at')
+    .select('id, name, subject, created_at')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false });
 

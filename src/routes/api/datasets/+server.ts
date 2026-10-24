@@ -7,7 +7,6 @@ const CreateSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200, 'Name too long'),
   original_filename: z.string().max(500).optional(),
   storage_path: z.string().min(1, 'Storage path is required').max(1000),
-  mime_type: z.string().max(100).default('text/csv'),
   row_count: z.number().int().min(0).default(0),
   column_count: z.number().int().min(0).default(0),
   columns: z.array(z.object({

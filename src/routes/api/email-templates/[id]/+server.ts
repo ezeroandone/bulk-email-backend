@@ -10,9 +10,9 @@ import type { RequestHandler } from './$types';
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  subject_template: z.string().min(1).max(998).optional(),
-  body_template: z.string().min(1).optional(),
-  is_html: z.boolean().optional()
+  subject: z.string().min(1).max(998).optional(),
+  body_html: z.string().min(1).optional(),
+  body_text: z.string().optional()
 });
 
 export const GET: RequestHandler = async ({ locals, params }) => {
@@ -25,7 +25,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
   const { data, error } = await locals.supabase
     .from('email_templates')
-    .select('id, name, subject_template, body_template, is_html, created_at, updated_at')
+    .select('id, name, subject, body_html, body_text, created_at, updated_at')
     .eq('id', params.id)
     .eq('user_id', session.user.id)
     .maybeSingle();
@@ -78,7 +78,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     .update({ ...parsed.data })
     .eq('id', params.id)
     .eq('user_id', session.user.id)
-    .select('id, name, subject_template, body_template, is_html, updated_at')
+    .select('id, name, subject, body_html, body_text, updated_at')
     .single();
 
   if (error || !updated) {
