@@ -7,6 +7,7 @@
     loading?: boolean;
     disabled?: boolean;
     type?: 'button' | 'submit' | 'reset';
+    form?: string;
     class?: string;
     onclick?: (e: MouseEvent) => void;
     icon?: Snippet;
@@ -19,6 +20,7 @@
     loading = false,
     disabled = false,
     type = 'button',
+    form,
     class: extraClass = '',
     onclick,
     icon,
@@ -32,6 +34,7 @@
 
 <button
   {type}
+  {form}
   class="{baseClass} {variantClass} {sizeClass} {extraClass}"
   disabled={disabled || loading}
   {onclick}

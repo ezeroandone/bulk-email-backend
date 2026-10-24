@@ -259,10 +259,12 @@
       action={editId ? '?/save' : '?/save'}
       use:enhance={() => {
         saving = true;
-        return async ({ update }) => {
-          saving = false;
-          modalOpen = false;
+        return async ({ update, result }) => {
           await update();
+          saving = false;
+          if (result.type === 'success') {
+            modalOpen = false;
+          }
         };
       }}
     >
