@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { PUBLIC_APP_NAME } from '$lib/env';
 
   interface Props {
@@ -11,16 +11,17 @@
 
   const navItems = [
     { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-    { href: '/campaigns', icon: 'campaign', label: 'Campaigns' },
-    { href: '/templates', icon: 'description', label: 'Templates' },
-    { href: '/datasets', icon: 'table_chart', label: 'Datasets' },
-    { href: '/documents', icon: 'folder_open', label: 'Documents' },
-    { href: '/smtp', icon: 'mail_lock', label: 'SMTP Settings' },
-    { href: '/billing', icon: 'payments', label: 'Credits & Billing' }
+    { href: '/dashboard/campaigns', icon: 'campaign', label: 'Campaigns' },
+    { href: '/dashboard/templates', icon: 'description', label: 'Templates' },
+    { href: '/dashboard/datasets', icon: 'table_chart', label: 'Datasets' },
+    { href: '/dashboard/email-templates', icon: 'folder_open', label: 'Email Templates' },
+    { href: '/dashboard/settings/smtp', icon: 'mail_lock', label: 'SMTP Settings' },
+    { href: '/dashboard/billing', icon: 'payments', label: 'Credits & Billing' }
   ] as const;
 
   function isActive(href: string): boolean {
-    return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
+    // page is a rune-based state object in SvelteKit 5 — no $ prefix needed
+    return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
   }
 </script>
 

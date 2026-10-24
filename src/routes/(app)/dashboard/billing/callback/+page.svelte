@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { Button } from '$lib/components/ui';
 
@@ -10,7 +10,7 @@
   let reference = $state<string | null>(null);
 
   onMount(() => {
-    reference = $page.url.searchParams.get('reference');
+    reference = page.url.searchParams.get('reference');
 
     if (!reference) {
       status = 'failed';

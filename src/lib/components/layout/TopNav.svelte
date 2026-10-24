@@ -1,7 +1,7 @@
 <script lang="ts">
   import { creditBalance } from '$lib/stores/credits';
   import { theme } from '$lib/stores/theme';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import type { User } from '@supabase/supabase-js';
 
   interface Props {
@@ -27,7 +27,7 @@
   };
 
   let pageTitle = $derived.by(() => {
-    const pathname = $page.url.pathname;
+    const pathname = page.url.pathname;
     for (const [prefix, label] of Object.entries(titleMap)) {
       if (pathname === prefix || pathname.startsWith(prefix + '/')) return label;
     }

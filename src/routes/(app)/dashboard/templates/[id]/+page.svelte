@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import Card from '$lib/components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -11,7 +11,7 @@
 
   let { data }: PageProps = $props();
 
-  const templateId = $derived($page.params.id);
+  const templateId = $derived(page.params.id);
 
   // ── Derived ────────────────────────────────────────────────────────────────
 

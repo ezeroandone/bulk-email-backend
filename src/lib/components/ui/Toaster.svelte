@@ -1,10 +1,16 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import Toast from './Toast.svelte';
-  import { toastStore } from '$lib/stores/toast';
+  import { toastStore, type ToastItem } from '$lib/stores/toast';
+
+  // Subscribe to the store so the component re-renders when toasts change
+  let toasts = $state<ToastItem[]>([]);
+  const unsub = toastStore.subscribe((t) => { toasts = t; });
+  onDestroy(unsub);
 </script>
 
 <div class="toaster" aria-label="Notifications" role="region">
-  {#each toastStore.toasts as toast (toast.id)}
+  {#each toasts as toast (toast.id)}
     <Toast
       id={toast.id}
       message={toast.message}
