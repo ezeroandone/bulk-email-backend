@@ -25,6 +25,8 @@
     recipientNameCol: string;
     campaignName: string;
     consentChecked: boolean;
+    matchColumn: string;
+    selectedFileNames: string[];
   }
 
   const DRAFT_KEY = 'mergemail_campaign_draft';
@@ -48,6 +50,17 @@
   let showDraftBanner = $state(false);
   let previewRecipientIndex = $state(0);
 
+  // Mode A file upload state
+  let selectedFiles = $state<File[]>([]);
+  let matchColumn = $state('');
+  let dragging = $state(false);
+  let fileInputEl = $state<HTMLInputElement | null>(null);
+
+  // Mode A launch progress state
+  let launchProgress = $state<{label: string; status: 'pending'|'running'|'done'|'error'}[]>([]);
+  let unmatchedWarning = $state<{count: number; files: string[]} | null>(null);
+  let launchCampaignId = $state<string | null>(null);
+
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const selectedDataset = $derived(data.datasets.find((d) => d.id === datasetId) ?? null);
@@ -68,8 +81,8 @@
       case 1: return mode !== null;
       case 2: return datasetId !== '';
       case 3: return recipientEmailCol !== '' && eligibleCount > 0;
-      case 4: return mode === 'C' || mode === 'A' || templateId !== '';
-      case 5: return true; // matching/mapping can be skipped
+      case 4: return mode === 'A' ? selectedFiles.length > 0 : (mode === 'C' || templateId !== '');
+      case 5: return mode !== 'A' || matchColumn !== '';
       case 6: return subject.trim() !== '' && body.trim() !== '';
       case 7: return smtpId !== '';
       case 8: return true; // preview
@@ -89,7 +102,8 @@
   function saveDraft() {
     const draft: DraftState = {
       step, mode, datasetId, excludedRows, templateId, smtpId,
-      subject, body, recipientEmailCol, recipientNameCol, campaignName, consentChecked
+      subject, body, recipientEmailCol, recipientNameCol, campaignName, consentChecked,
+      matchColumn, selectedFileNames: selectedFiles.map(f => f.name)
     };
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -97,6 +111,9 @@
       // ignore storage errors
     }
   }
+
+  // Track file names from loaded draft (File objects can't be persisted)
+  let loadedDraftFileNames = $state<string[]>([]);
 
   function loadDraft() {
     try {
@@ -115,6 +132,8 @@
       recipientNameCol = d.recipientNameCol ?? '';
       campaignName = d.campaignName ?? '';
       consentChecked = false; // always reset consent
+      matchColumn = d.matchColumn ?? '';
+      loadedDraftFileNames = d.selectedFileNames ?? [];
       return true;
     } catch {
       return false;
@@ -160,12 +179,109 @@
     subject = subject + varStr;
   }
 
+  // ── File helpers ───────────────────────────────────────────────────────────
+
+  function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes}b`;
+    if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  }
+
+  function mergeFiles(incoming: FileList | null, current: File[]): File[] {
+    if (!incoming) return current;
+    const existingNames = new Set(current.map(f => f.name));
+    const newFiles = Array.from(incoming).filter(f => !existingNames.has(f.name));
+    return [...current, ...newFiles];
+  }
+
+  function handleFileInputChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    selectedFiles = mergeFiles(input.files, selectedFiles);
+    input.value = '';
+  }
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    dragging = false;
+    selectedFiles = mergeFiles(event.dataTransfer?.files ?? null, selectedFiles);
+  }
+
+  function removeFile(index: number) {
+    selectedFiles = selectedFiles.filter((_, i) => i !== index);
+  }
+
   // ── Launch ─────────────────────────────────────────────────────────────────
+
+  async function activateCampaign() {
+    launchProgress[3] = { label: 'Activating campaign', status: 'running' };
+    try {
+      const res = await fetch(`/api/campaigns/${launchCampaignId}/activate`, { method: 'POST' });
+      const json = await res.json() as { success: boolean; error?: string };
+      if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
+      launchProgress[3] = { label: 'Activating campaign', status: 'done' };
+      clearDraft();
+      goto(`/dashboard/campaigns/${launchCampaignId}`);
+    } catch (err) {
+      launchProgress[3] = { label: 'Activating campaign', status: 'error' };
+      launchError = err instanceof Error ? err.message : 'Failed to activate campaign.';
+      launching = false;
+    }
+  }
+
+  async function continueAfterUnmatchedWarning() {
+    unmatchedWarning = null;
+    launching = true;
+    await activateCampaign();
+  }
 
   async function launch() {
     if (!consentChecked || !campaignName.trim()) return;
     launchError = null;
     launching = true;
+
+    if (mode !== 'A') {
+      // Mode B / C: single POST, goto
+      try {
+        const res = await fetch('/api/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: campaignName.trim(),
+            mode,
+            dataset_id: datasetId,
+            smtp_config_id: smtpId,
+            subject_template: subject.trim(),
+            body_html: body.trim(),
+            recipient_email_column: recipientEmailCol,
+            recipient_name_column: recipientNameCol || undefined,
+            template_id: templateId || undefined,
+            excluded_row_indices: excludedRows
+          })
+        });
+        const json = await res.json() as { success: boolean; error?: string; data?: { campaign_id?: string } };
+        if (!res.ok || !json.success) {
+          throw new Error(json.error ?? `Failed (${res.status})`);
+        }
+        clearDraft();
+        const id = json.data?.campaign_id;
+        goto(id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns');
+      } catch (err) {
+        launchError = err instanceof Error ? err.message : 'Failed to launch campaign.';
+        launching = false;
+      }
+      return;
+    }
+
+    // Mode A: multi-step launch
+    launchProgress = [
+      { label: 'Creating campaign', status: 'pending' },
+      { label: 'Uploading files', status: 'pending' },
+      { label: 'Matching files', status: 'pending' },
+      { label: 'Activating campaign', status: 'pending' }
+    ];
+
+    // Step 1: Create campaign
+    launchProgress[0] = { label: 'Creating campaign', status: 'running' };
     try {
       const res = await fetch('/api/campaigns', {
         method: 'POST',
@@ -179,21 +295,66 @@
           body_html: body.trim(),
           recipient_email_column: recipientEmailCol,
           recipient_name_column: recipientNameCol || undefined,
-          template_id: templateId || undefined,
-          excluded_row_indices: excludedRows
+          excluded_row_indices: excludedRows,
+          file_match_config: { match_column: matchColumn }
         })
       });
       const json = await res.json() as { success: boolean; error?: string; data?: { campaign_id?: string } };
-      if (!res.ok || !json.success) {
-        throw new Error(json.error ?? `Failed (${res.status})`);
-      }
-      clearDraft();
-      const id = json.data?.campaign_id;
-      goto(id ? `/dashboard/campaigns/${id}` : '/dashboard/campaigns');
+      if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
+      launchCampaignId = json.data?.campaign_id ?? null;
+      launchProgress[0] = { label: 'Creating campaign', status: 'done' };
     } catch (err) {
-      launchError = err instanceof Error ? err.message : 'Failed to launch campaign.';
+      launchProgress[0] = { label: 'Creating campaign', status: 'error' };
+      launchError = err instanceof Error ? err.message : 'Failed to create campaign.';
       launching = false;
+      return;
     }
+
+    // Step 2: Upload files
+    launchProgress[1] = { label: 'Uploading files', status: 'running' };
+    try {
+      const formData = new FormData();
+      for (const file of selectedFiles) {
+        formData.append('files', file);
+      }
+      const res = await fetch(`/api/campaigns/${launchCampaignId}/files`, { method: 'POST', body: formData });
+      const json = await res.json() as { success: boolean; error?: string };
+      if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
+      launchProgress[1] = { label: 'Uploading files', status: 'done' };
+    } catch (err) {
+      launchProgress[1] = { label: 'Uploading files', status: 'error' };
+      launchError = err instanceof Error ? err.message : 'Failed to upload files.';
+      launching = false;
+      return;
+    }
+
+    // Step 3: Match files
+    launchProgress[2] = { label: 'Matching files', status: 'running' };
+    try {
+      const res = await fetch(`/api/campaigns/${launchCampaignId}/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_column: matchColumn })
+      });
+      const json = await res.json() as { success: boolean; error?: string; data?: { unmatched_count?: number; unmatched_files?: string[] } };
+      if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
+      launchProgress[2] = { label: 'Matching files', status: 'done' };
+      const unmatchedCount = json.data?.unmatched_count ?? 0;
+      const unmatchedFiles = json.data?.unmatched_files ?? [];
+      if (unmatchedCount > 0) {
+        unmatchedWarning = { count: unmatchedCount, files: unmatchedFiles };
+        launching = false;
+        return;
+      }
+    } catch (err) {
+      launchProgress[2] = { label: 'Matching files', status: 'error' };
+      launchError = err instanceof Error ? err.message : 'Failed to match files.';
+      launching = false;
+      return;
+    }
+
+    // Step 4: Activate
+    await activateCampaign();
   }
 
   // ── Mount ──────────────────────────────────────────────────────────────────
@@ -221,6 +382,15 @@
   const previewSubject = $derived(interpolate(subject, previewVars as Record<string, string>));
   const previewBody = $derived(interpolate(body, previewVars as Record<string, string>));
   const previewEmail = $derived((previewVars as Record<string, string>)[recipientEmailCol] ?? '(unknown)');
+
+  const previewMatches = $derived(() => {
+    if (!matchColumn || selectedFiles.length === 0) return [];
+    return selectedFiles.map(f => {
+      const fileKey = f.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
+      const match = previewRecipients.find(r => String((r as Record<string,string>)[matchColumn] ?? '').trim().toLowerCase() === fileKey);
+      return { filename: f.name, matchValue: match ? (match as Record<string,string>)[matchColumn] : null, matched: !!match };
+    });
+  });
 </script>
 
 <svelte:head>
@@ -422,11 +592,66 @@
       <Card>
         <div class="form-section">
           {#if mode === 'A'}
-            <p class="step-desc">Upload PDFs, images (PNG, JPEG, WebP, GIF, TIFF), or a ZIP file containing per-recipient documents.</p>
-            <div class="upload-note">
-              <span class="material-symbols-outlined" aria-hidden="true">info</span>
-              <span>Supported formats: PDF, PNG, JPEG, WebP, GIF, TIFF, and ZIP archives containing any of the above. Files will be matched to recipients using the matching rules you configure in the next step.</span>
+            <p class="step-desc">Upload PDFs, images (PNG, JPEG, WebP), or a ZIP file containing per-recipient documents.</p>
+
+            <!-- Hidden file input -->
+            <input
+              bind:this={fileInputEl}
+              type="file"
+              id="file-input-a"
+              multiple
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.zip"
+              style="display:none"
+              onchange={handleFileInputChange}
+            />
+
+            <!-- Dropzone -->
+            <div
+              class="dropzone"
+              class:dropzone-dragging={dragging}
+              role="button"
+              tabindex="0"
+              aria-label="Upload files"
+              onclick={() => fileInputEl?.click()}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputEl?.click(); } }}
+              ondragover={(e) => { e.preventDefault(); dragging = true; }}
+              ondragleave={() => { dragging = false; }}
+              ondrop={handleDrop}
+            >
+              <span class="material-symbols-outlined dropzone-icon" aria-hidden="true">upload</span>
+              <p class="dropzone-text">Drop files here or click to browse</p>
+              <p class="dropzone-hint">PDF, PNG, JPG, WebP, ZIP</p>
+              {#if selectedFiles.length > 0}
+                <span class="dropzone-badge">{selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected</span>
+              {/if}
             </div>
+
+            <!-- File list -->
+            {#if selectedFiles.length > 0}
+              <ul class="file-list" aria-label="Selected files">
+                {#each selectedFiles as file, i (file.name)}
+                  <li class="file-item">
+                    <span class="material-symbols-outlined file-icon" aria-hidden="true">description</span>
+                    <span class="file-name">{file.name}</span>
+                    <span class="file-size">{formatSize(file.size)}</span>
+                    <button
+                      type="button"
+                      class="file-remove"
+                      aria-label={`Remove ${file.name}`}
+                      onclick={() => removeFile(i)}
+                    >×</button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+
+            <!-- Draft re-select notice -->
+            {#if showDraftBanner && selectedFiles.length === 0 && loadedDraftFileNames.length > 0}
+              <div class="draft-files-notice" role="note">
+                <span class="material-symbols-outlined" aria-hidden="true">info</span>
+                <span>Previously selected files: {loadedDraftFileNames.join(', ')}. Please re-select your files.</span>
+              </div>
+            {/if}
           {:else}
             <p class="step-desc">Choose a DOCX, PDF, or image template to generate personalised documents.</p>
             {#if data.templates.length === 0}
@@ -465,20 +690,47 @@
       <Card>
         <div class="form-section">
           {#if mode === 'A'}
-            <div class="matching-note">
-              <span class="material-symbols-outlined" aria-hidden="true">auto_match</span>
-              <div>
-                <p class="matching-note-title">Automatic matching</p>
-                <p class="matching-note-desc">
-                  Documents will be matched to recipients using the filename vs the recipient's email or name.
-                  You can configure precise rules on the template detail page.
-                </p>
-              </div>
+            <!-- Column picker -->
+            <div class="field-group">
+              <label class="field-label" for="match-col">Match filenames against column <span class="required">*</span></label>
+              <select id="match-col" class="field-select" bind:value={matchColumn}>
+                <option value="">Select column…</option>
+                {#each datasetColumns as col}
+                  <option value={col}>{col}</option>
+                {/each}
+              </select>
+              <p class="step-desc">Files will be matched by comparing the filename (without extension) to the value in the selected column.</p>
             </div>
-            {#if selectedTemplate}
-              <p class="template-hint">
-                Template: <strong>{selectedTemplate.name}</strong>
-              </p>
+
+            <!-- Match preview table -->
+            {#if previewMatches().length > 0}
+              {@const matched = previewMatches().filter(m => m.matched).length}
+              {@const total = previewMatches().length}
+              <table class="match-preview-table" aria-label="File match preview">
+                <thead>
+                  <tr>
+                    <th>Filename</th>
+                    <th>Match value</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each previewMatches() as row}
+                    <tr class:unmatched={!row.matched}>
+                      <td>{row.filename}</td>
+                      <td>{row.matchValue ?? '—'}</td>
+                      <td>
+                        {#if row.matched}
+                          <span class="match-status match-ok" aria-label="Matched">✓</span>
+                        {:else}
+                          <span class="match-status match-fail" aria-label="Unmatched">✗</span>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              <p class="match-summary">{matched} of {total} files matched in preview</p>
             {/if}
           {:else if mode === 'B'}
             <p class="step-desc">
@@ -673,29 +925,80 @@
       <h2 class="step-title">Launching your campaign…</h2>
       <Card>
         <div class="form-section launch-section">
-          {#if launching}
-            <div class="launch-spinner">
-              <span class="material-symbols-outlined spin" aria-hidden="true">sync</span>
-              <span>Creating campaign and queuing jobs…</span>
-            </div>
-          {:else if launchError}
-            <div class="launch-error" role="alert">
-              <span class="material-symbols-outlined" aria-hidden="true">error</span>
-              <div>
-                <p class="launch-error-title">Failed to launch</p>
-                <p class="launch-error-msg">{launchError}</p>
+          {#if mode === 'A' && launchProgress.length > 0}
+            <!-- Mode A: multi-step progress -->
+            <ul class="launch-progress-list" aria-label="Launch progress">
+              {#each launchProgress as item}
+                <li class="launch-progress-item launch-progress-{item.status}">
+                  {#if item.status === 'pending'}
+                    <span class="material-symbols-outlined lp-icon" aria-hidden="true">radio_button_unchecked</span>
+                  {:else if item.status === 'running'}
+                    <span class="material-symbols-outlined lp-icon spin" aria-hidden="true">sync</span>
+                  {:else if item.status === 'done'}
+                    <span class="material-symbols-outlined lp-icon lp-done" aria-hidden="true">check_circle</span>
+                  {:else}
+                    <span class="material-symbols-outlined lp-icon lp-error" aria-hidden="true">error</span>
+                  {/if}
+                  <span class="lp-label">{item.label}</span>
+                </li>
+              {/each}
+            </ul>
+
+            {#if unmatchedWarning}
+              <div class="unmatched-warning" role="alert">
+                <div class="unmatched-warning-header">
+                  <span class="material-symbols-outlined" aria-hidden="true">warning</span>
+                  <strong>Warning: {unmatchedWarning.count} file{unmatchedWarning.count === 1 ? '' : 's'} {unmatchedWarning.count === 1 ? 'has' : 'have'} no matching recipient</strong>
+                </div>
+                <p class="unmatched-warning-files">{unmatchedWarning.files.join(', ')}</p>
+                <p class="unmatched-warning-msg">These recipients will receive the email without an attachment.</p>
+                <div class="unmatched-warning-actions">
+                  <Button variant="secondary" onclick={() => { unmatchedWarning = null; step = 4; launching = false; }}>
+                    {#snippet children()}Go Back{/snippet}
+                  </Button>
+                  <Button variant="primary" onclick={continueAfterUnmatchedWarning}>
+                    {#snippet children()}Continue Anyway{/snippet}
+                  </Button>
+                </div>
               </div>
-            </div>
-            <Button variant="primary" onclick={launch}>Retry</Button>
+            {/if}
+
+            {#if launchError}
+              <div class="launch-error" role="alert">
+                <span class="material-symbols-outlined" aria-hidden="true">error</span>
+                <div>
+                  <p class="launch-error-title">Failed to launch</p>
+                  <p class="launch-error-msg">{launchError}</p>
+                </div>
+              </div>
+              <Button variant="primary" onclick={launch}>Retry</Button>
+            {/if}
           {:else}
-            <div class="launch-ready">
-              <span class="material-symbols-outlined launch-icon" aria-hidden="true">rocket_launch</span>
-              <p>Ready to launch <strong>{campaignName}</strong> to {eligibleCount} recipients.</p>
-            </div>
-            <Button variant="primary" size="lg" onclick={launch} loading={launching}>
-              {#snippet icon()}<span class="material-symbols-outlined">send</span>{/snippet}
-              {#snippet children()}Launch Campaign{/snippet}
-            </Button>
+            <!-- Mode B / C -->
+            {#if launching}
+              <div class="launch-spinner">
+                <span class="material-symbols-outlined spin" aria-hidden="true">sync</span>
+                <span>Creating campaign and queuing jobs…</span>
+              </div>
+            {:else if launchError}
+              <div class="launch-error" role="alert">
+                <span class="material-symbols-outlined" aria-hidden="true">error</span>
+                <div>
+                  <p class="launch-error-title">Failed to launch</p>
+                  <p class="launch-error-msg">{launchError}</p>
+                </div>
+              </div>
+              <Button variant="primary" onclick={launch}>Retry</Button>
+            {:else}
+              <div class="launch-ready">
+                <span class="material-symbols-outlined launch-icon" aria-hidden="true">rocket_launch</span>
+                <p>Ready to launch <strong>{campaignName}</strong> to {eligibleCount} recipients.</p>
+              </div>
+              <Button variant="primary" size="lg" onclick={launch} loading={launching}>
+                {#snippet icon()}<span class="material-symbols-outlined">send</span>{/snippet}
+                {#snippet children()}Launch Campaign{/snippet}
+              </Button>
+            {/if}
           {/if}
         </div>
       </Card>
@@ -1165,4 +1468,218 @@
   }
 
   .cancel-link:hover { color: var(--color-text); }
+
+  /* Dropzone */
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1.5rem;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-subtle);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    text-align: center;
+    user-select: none;
+  }
+
+  .dropzone:hover, .dropzone:focus-visible {
+    border-color: var(--color-brand);
+    background: var(--color-brand-light);
+    outline: none;
+  }
+
+  .dropzone-dragging {
+    border-color: var(--color-brand);
+    background: var(--color-brand-light);
+  }
+
+  .dropzone-icon { font-size: 2.5rem; color: var(--color-brand); }
+  .dropzone-text { font-size: var(--font-size-base); font-weight: 500; color: var(--color-text); margin: 0; }
+  .dropzone-hint { font-size: var(--font-size-xs); color: var(--color-text-muted); margin: 0; }
+
+  .dropzone-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem;
+    background: var(--color-brand);
+    color: var(--color-text-inverse);
+    border-radius: 9999px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+
+  /* File list */
+  .file-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+  }
+
+  .file-icon { font-size: 1.125rem; color: var(--color-brand); flex-shrink: 0; }
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+  .file-size { font-size: var(--font-size-xs); color: var(--color-text-muted); white-space: nowrap; }
+
+  .file-remove {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.125rem;
+    line-height: 1;
+    color: var(--color-text-muted);
+    padding: 0.125rem 0.25rem;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    transition: color var(--transition-fast), background var(--transition-fast);
+  }
+
+  .file-remove:hover { color: var(--color-error); background: var(--color-error-light); }
+
+  /* Draft files notice */
+  .draft-files-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  .draft-files-notice .material-symbols-outlined { font-size: 1.125rem; flex-shrink: 0; color: var(--color-brand); }
+
+  /* Match preview table */
+  .match-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .match-preview-table thead tr {
+    background: var(--color-bg-muted);
+  }
+
+  .match-preview-table th {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .match-preview-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+
+  .match-preview-table tbody tr:last-child td { border-bottom: none; }
+
+  .match-preview-table tr.unmatched td { color: var(--color-error); }
+
+  .match-status { font-size: 1rem; font-weight: 700; }
+  .match-ok { color: var(--color-success); }
+  .match-fail { color: var(--color-error); }
+
+  .match-summary {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin: 0;
+    text-align: right;
+  }
+
+  /* Launch progress list */
+  .launch-progress-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .launch-progress-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: var(--font-size-base);
+    color: var(--color-text-muted);
+  }
+
+  .launch-progress-running { color: var(--color-text); }
+  .launch-progress-done { color: var(--color-success); }
+  .launch-progress-error { color: var(--color-error); }
+
+  .lp-icon { font-size: 1.375rem; flex-shrink: 0; }
+  .lp-label { flex: 1; }
+  .lp-done { color: var(--color-success); }
+  .lp-error { color: var(--color-error); }
+
+  /* Unmatched warning card */
+  .unmatched-warning {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 1rem;
+    background: #fff7ed;
+    border: 1px solid #f97316;
+    border-radius: var(--radius-md);
+    width: 100%;
+  }
+
+  .unmatched-warning-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #c2410c;
+    font-size: var(--font-size-sm);
+  }
+
+  .unmatched-warning-header .material-symbols-outlined { font-size: 1.25rem; flex-shrink: 0; }
+
+  .unmatched-warning-files {
+    font-size: var(--font-size-sm);
+    color: #92400e;
+    margin: 0;
+    word-break: break-word;
+  }
+
+  .unmatched-warning-msg {
+    font-size: var(--font-size-sm);
+    color: #92400e;
+    margin: 0;
+  }
+
+  .unmatched-warning-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.375rem;
+  }
 </style>
