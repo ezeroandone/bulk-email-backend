@@ -68,7 +68,7 @@
       case 1: return mode !== null;
       case 2: return datasetId !== '';
       case 3: return recipientEmailCol !== '' && eligibleCount > 0;
-      case 4: return mode === 'C' || templateId !== '';
+      case 4: return mode === 'C' || mode === 'A' || templateId !== '';
       case 5: return true; // matching/mapping can be skipped
       case 6: return subject.trim() !== '' && body.trim() !== '';
       case 7: return smtpId !== '';
