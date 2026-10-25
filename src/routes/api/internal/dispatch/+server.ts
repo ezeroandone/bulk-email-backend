@@ -5,7 +5,8 @@
  * Authorization: Bearer ${INTERNAL_WORKER_SECRET}
  */
 import { json } from '@sveltejs/kit';
-import type { Config, RequestHandler } from './$types';
+import type { Config } from '@sveltejs/adapter-vercel';
+import type { RequestHandler } from './$types';
 
 /** Give this serverless function 30 seconds (Vercel adapter config). */
 export const config: Config = {
