@@ -47,14 +47,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   if (recipientIds.length > 0) {
     const { data: jobs } = await locals.supabase
       .from('delivery_jobs')
-      .select('campaign_recipient_id, attempt_count, error, updated_at')
+      .select('campaign_recipient_id, attempt_count, last_error, updated_at')
       .eq('campaign_id', params.id)
       .in('campaign_recipient_id', recipientIds);
 
     for (const j of jobs ?? []) {
       jobMap[j.campaign_recipient_id as string] = {
         attempt_count: (j.attempt_count as number) ?? 0,
-        error: j.error as string | null,
+        error: j.last_error as string | null,
         updated_at: j.updated_at as string
       };
     }

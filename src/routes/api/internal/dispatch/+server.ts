@@ -391,7 +391,7 @@ async function processJob(
       // 8. Permanent failure
       await admin
         .from('delivery_jobs')
-        .update({ status: 'failed', completed_at: new Date().toISOString(), error: smtpErr.message })
+        .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: smtpErr.message })
         .eq('id', jobId);
       await admin
         .from('campaign_recipients')
@@ -408,7 +408,7 @@ async function processJob(
             status: 'retrying',
             attempt_count: newAttemptCount,
             next_attempt_at: nextAttemptAt(newAttemptCount),
-            error: smtpErr.message
+            last_error: smtpErr.message
           })
           .eq('id', jobId);
         await admin
@@ -420,7 +420,7 @@ async function processJob(
         // 10. Transient but max attempts exceeded
         await admin
           .from('delivery_jobs')
-          .update({ status: 'failed', completed_at: new Date().toISOString(), error: smtpErr.message })
+          .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: smtpErr.message })
           .eq('id', jobId);
         await admin
           .from('campaign_recipients')
@@ -449,7 +449,7 @@ async function markFailed(
 ): Promise<void> {
   await admin
     .from('delivery_jobs')
-    .update({ status: 'failed', completed_at: new Date().toISOString(), error: message })
+    .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: message })
     .eq('id', jobId);
   await admin
     .from('campaign_recipients')
@@ -468,7 +468,7 @@ async function markUncertain(
 ): Promise<void> {
   await admin
     .from('delivery_jobs')
-    .update({ status: 'uncertain', error: message })
+    .update({ status: 'uncertain', last_error: message })
     .eq('id', jobId);
   await admin
     .from('campaign_recipients')
