@@ -103,6 +103,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   const d = parsed.data;
 
+  // Fetch user role — admins get unlimited credits
+  const { data: profile } = await locals.supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .maybeSingle();
+  const isAdmin = (profile?.role as string) === 'admin';
+
   // 1. Validate dataset ownership + row count
   const { data: dataset, error: dsErr } = await locals.supabase
     .from('datasets')
@@ -153,19 +161,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   // Never trust the client for the credit amount — compute server-side
   const creditRequired = eligibleRows.length;
 
-  // 5. Reserve credits via DB function
-  const { error: creditErr } = await locals.supabase.rpc('reserve_credits', {
-    p_user_id: session.user.id,
-    p_amount: creditRequired,
-    p_reference: 'campaign_pending'
-  });
+  // 5. Reserve credits via DB function (admins bypass credit check)
+  if (!isAdmin) {
+    const { error: creditErr } = await locals.supabase.rpc('reserve_credits', {
+      p_user_id: session.user.id,
+      p_amount: creditRequired,
+      p_reference: 'campaign_pending'
+    });
 
-  if (creditErr) {
-    const msg = creditErr.message ?? '';
-    if (msg.includes('insufficient') || msg.includes('balance')) {
-      return json({ success: false, error: 'Insufficient credits.' }, { status: 402 });
+    if (creditErr) {
+      const msg = creditErr.message ?? '';
+      if (msg.includes('insufficient') || msg.includes('balance')) {
+        return json({ success: false, error: 'Insufficient credits.' }, { status: 402 });
+      }
+      return json({ success: false, error: 'Failed to reserve credits.' }, { status: 500 });
     }
-    return json({ success: false, error: 'Failed to reserve credits.' }, { status: 500 });
   }
 
   // 6. Insert campaign record
@@ -188,17 +198,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         pdf_field_config: d.pdf_field_config ?? null,
       },
       recipient_count: eligibleRows.length,
-      credits_reserved: creditRequired
+      credits_reserved: isAdmin ? 0 : creditRequired
     })
     .select('id')
     .single();
 
   if (campErr || !campaign) {
-    // Release credits on campaign creation failure
-    await Promise.resolve(locals.supabase.rpc('release_credits', {
-      p_user_id: session.user.id,
-      p_amount: creditRequired
-    })).catch(() => null);
+    // Release credits on campaign creation failure (non-admins only)
+    if (!isAdmin) {
+      await Promise.resolve(locals.supabase.rpc('release_credits', {
+        p_user_id: session.user.id,
+        p_amount: creditRequired
+      })).catch(() => null);
+    }
     return json({ success: false, error: 'Failed to create campaign.' }, { status: 500 });
   }
 
