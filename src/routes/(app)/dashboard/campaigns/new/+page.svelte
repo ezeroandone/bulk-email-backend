@@ -336,10 +336,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ match_column: matchColumn })
       });
-      const json = await res.json() as { success: boolean; error?: string; data?: { unmatched_count?: number; unmatched_files?: string[] } };
+      const json = await res.json() as { success: boolean; error?: string; data?: { unmatched?: number; unmatched_files?: string[] } };
       if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
       launchProgress[2] = { label: 'Matching files', status: 'done' };
-      const unmatchedCount = json.data?.unmatched_count ?? 0;
+      const unmatchedCount = json.data?.unmatched ?? 0;
       const unmatchedFiles = json.data?.unmatched_files ?? [];
       if (unmatchedCount > 0) {
         unmatchedWarning = { count: unmatchedCount, files: unmatchedFiles };
