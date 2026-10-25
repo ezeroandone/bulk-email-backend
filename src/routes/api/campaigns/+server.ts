@@ -233,15 +233,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const recipientInserts = eligibleRows.map((row) => {
     const rowData = row.data as Record<string, string>;
     const email = rowData[d.recipient_email_column] ?? '';
-    const name = d.recipient_name_column ? (rowData[d.recipient_name_column] ?? null) : null;
     return {
       campaign_id: campaignId,
       dataset_row_id: row.id,
-      row_index: row.row_index,
       email,
-      name,
-      variables: rowData,
-      status: 'queued'
+      row_data: rowData,
+      status: 'draft'
     };
   });
 
@@ -257,7 +254,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   // 8. Insert delivery_jobs rows
   const jobInserts = recipients.map((r) => ({
     campaign_id: campaignId,
-    recipient_id: r.id,
+    campaign_recipient_id: r.id,
+    user_id: session.user.id,
+    smtp_config_id: d.smtp_config_id,
     status: d.mode === 'A' ? 'draft' : 'queued',
     attempt_count: 0,
     max_attempts: 3
