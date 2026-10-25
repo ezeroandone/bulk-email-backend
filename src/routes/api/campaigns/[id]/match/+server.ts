@@ -178,7 +178,17 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       total_assets:    assetMap.size,
       matched:         matches.length,
       unmatched:       unmatchedFiles.length,
-      unmatched_files: unmatchedFiles
+      unmatched_files: unmatchedFiles,
+      debug: {
+        match_column,
+        sample_asset_keys: [...assetMap.keys()].slice(0, 3),
+        sample_recipient_value: recipients && recipients.length > 0
+          ? String((recipients[0].row_data as Record<string, unknown>)[match_column] ?? '(key not found)')
+          : '(no recipients)',
+        sample_row_data_keys: recipients && recipients.length > 0
+          ? Object.keys(recipients[0].row_data as Record<string, unknown>).slice(0, 5)
+          : []
+      }
     }
   });
 };
