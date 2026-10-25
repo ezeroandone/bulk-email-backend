@@ -36,7 +36,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   // Load first page of recipients for the table
   const { data: recipients } = await locals.supabase
     .from('campaign_recipients')
-    .select('id, email, status, row_data, delivery_job_id, delivery_jobs(attempt_count, last_error, updated_at)')
+    .select(`
+      id, email, status, row_data,
+      delivery_jobs(attempt_count, error, updated_at)
+    `)
     .eq('campaign_id', params.id)
     .order('id', { ascending: true })
     .range(0, 49);

@@ -93,21 +93,30 @@
             table: 'delivery_jobs',
             filter: `campaign_id=eq.${campaign.id}`
           },
-          () => {
-            refreshStats();
-          }
+          () => { refreshStats(); }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'campaign_recipients',
+            filter: `campaign_id=eq.${campaign.id}`
+          },
+          () => { refreshStats(); refreshRecipients(); }
         )
         .subscribe();
     } catch {
       // Realtime unavailable — fall through to polling
     }
 
-    // Polling fallback: every 10s
+    // Polling fallback: every 8s while active
     pollInterval = setInterval(() => {
       if (campaign.status === 'queued' || campaign.status === 'processing') {
         refreshStats();
+        refreshRecipients();
       }
-    }, 10_000);
+    }, 8_000);
   });
 
   onDestroy(() => {
@@ -117,7 +126,42 @@
     if (pollInterval) clearInterval(pollInterval);
   });
 
+  // ── Dispatch trigger ───────────────────────────────────────────────────────
+
+  let dispatching = $state(false);
+  let dispatchResult = $state<string | null>(null);
+
+  async function triggerDispatch() {
+    dispatching = true;
+    dispatchResult = null;
+    try {
+      const res = await fetch('/api/campaigns/dispatch-now', { method: 'POST' });
+      const j = await res.json() as Record<string, unknown>;
+      if (res.ok) {
+        dispatchResult = `Dispatched — accepted: ${j.accepted ?? 0}, failed: ${j.failed ?? 0}, retrying: ${j.retrying ?? 0}`;
+        await refreshStats();
+        await refreshRecipients();
+      } else {
+        dispatchResult = (j.error as string) ?? 'Dispatch failed.';
+      }
+    } catch {
+      dispatchResult = 'Network error during dispatch.';
+    } finally {
+      dispatching = false;
+    }
+  }
+
+  async function refreshRecipients() {
+    const res = await fetch(`/api/campaigns/${campaign.id}/recipients`);
+    if (res.ok) {
+      const j = await res.json() as { data?: typeof recipients };
+      if (j.data) recipients = j.data;
+    }
+  }
+
   // ── Report download ────────────────────────────────────────────────────────
+
+  function downloadReport() {
 
   function downloadReport() {
     window.location.href = `/api/campaigns/${campaign.id}/report`;
@@ -266,6 +310,18 @@
             {#snippet children()}Resume{/snippet}
           </Button>
         {/if}
+        {#if campaign.status === 'queued' || campaign.status === 'processing'}
+          <Button
+            variant="primary"
+            size="sm"
+            loading={dispatching}
+            disabled={dispatching}
+            onclick={triggerDispatch}
+          >
+            {#snippet icon()}<span class="material-symbols-outlined">send</span>{/snippet}
+            {#snippet children()}Send Now{/snippet}
+          </Button>
+        {/if}
         {#if canRetry}
           <Button
             variant="secondary"
@@ -290,6 +346,9 @@
         {/if}
       </div>
     </div>
+    {#if dispatchResult}
+      <p class="dispatch-result">{dispatchResult}</p>
+    {/if}
   </Card>
 
   <!-- Recipients table -->
@@ -322,15 +381,17 @@
             </tr>
           {:else}
             {#each recipients as r (r.id)}
+              {@const job = (r as Record<string, unknown>).delivery_jobs as {attempt_count?: number; error?: string|null; updated_at?: string} | null}
+              {@const rowData = (r.row_data ?? {}) as Record<string, string>}
               <tr>
-                <td>{(r.name as string | null) ?? '—'}</td>
+                <td>{rowData.full_name ?? rowData.name ?? '—'}</td>
                 <td class="email-col">{r.email as string}</td>
                 <td><StatusBadge status={r.status as string} /></td>
-                <td class="num-col">{((r as {delivery_jobs?: {attempt_count?: number}|null}).delivery_jobs?.attempt_count ?? 0)}</td>
-                <td class="error-col" title={((r as {delivery_jobs?: {last_error?: string|null}|null}).delivery_jobs?.last_error ?? '')}>
-                  {truncate((r as {delivery_jobs?: {last_error?: string|null}|null}).delivery_jobs?.last_error ?? null)}
+                <td class="num-col">{job?.attempt_count ?? 0}</td>
+                <td class="error-col" title={job?.error ?? ''}>
+                  {truncate(job?.error ?? null)}
                 </td>
-                <td class="date-col">{fmtDate(((r as {delivery_jobs?: {updated_at?: string}|null}).delivery_jobs?.updated_at) ?? null)}</td>
+                <td class="date-col">{fmtDate(job?.updated_at ?? null)}</td>
               </tr>
             {/each}
           {/if}
@@ -530,6 +591,14 @@
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+  }
+
+  .dispatch-result {
+    margin: 0.5rem 0 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
   }
 
   /* Table */

@@ -136,7 +136,7 @@ async function processJob(
   // 1. Load recipient + dataset row variables
   const { data: recipient } = await admin
     .from('campaign_recipients')
-    .select('id, email, variables, dataset_row_index')
+    .select('id, email, row_data')
     .eq('id', recipientId)
     .single();
 
@@ -146,7 +146,7 @@ async function processJob(
     return;
   }
 
-  const variables: Record<string, string> = (recipient.variables as Record<string, string>) ?? {};
+  const variables: Record<string, string> = (recipient.row_data as Record<string, string>) ?? {};
 
   // 2. Load campaign — all template config lives in config_snapshot
   const { data: campaign } = await admin
@@ -171,7 +171,7 @@ async function processJob(
   let attachment: EmailAttachment | null = null;
   const mode = campaign.mode as string;
 
-  if (mode === 'A') {
+  if (mode === 'A' || mode === 'existing') {
     // Mode A: find the file_match for this recipient → get signed URL
     const { data: fileMatch } = await admin
       .from('file_matches')
