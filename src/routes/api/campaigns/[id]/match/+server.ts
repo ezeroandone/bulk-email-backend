@@ -153,11 +153,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     }
   }
 
-  // Upsert matches into file_matches
+  // Insert matches into file_matches (plain insert — no conflict expected for new campaigns)
   if (matches.length > 0) {
     const { error: upsertErr } = await admin
       .from('file_matches')
-      .upsert(matches, { onConflict: 'campaign_id,campaign_recipient_id' });
+      .insert(matches);
 
     if (upsertErr) {
       return json({ success: false, error: `Failed to save file matches: ${upsertErr.message}` }, { status: 500 });
