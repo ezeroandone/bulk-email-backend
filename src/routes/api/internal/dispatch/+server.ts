@@ -175,24 +175,28 @@ async function processJob(
     // Mode A: find the file_match for this recipient → get signed URL
     const { data: fileMatch } = await admin
       .from('file_matches')
-      .select('storage_path, filename')
+      .select('document_assets!document_asset_id(name, storage_path, mime_type)')
       .eq('campaign_id', campaignId)
-      .eq('recipient_id', recipientId)
+      .eq('campaign_recipient_id', recipientId)
       .maybeSingle();
 
-    if (fileMatch) {
+    const asset = fileMatch
+      ? (fileMatch.document_assets as unknown as { name: string; storage_path: string; mime_type: string } | null)
+      : null;
+
+    if (asset) {
       const { data: signedData } = await admin.storage
-        .from('campaign-documents')
-        .createSignedUrl(fileMatch.storage_path as string, 300);
+        .from('documents')
+        .createSignedUrl(asset.storage_path, 300);
 
       if (signedData?.signedUrl) {
         const res = await fetch(signedData.signedUrl);
         if (res.ok) {
           const buf = Buffer.from(await res.arrayBuffer());
           attachment = {
-            filename: fileMatch.filename as string,
+            filename: asset.name,
             content: buf,
-            contentType: 'application/pdf'
+            contentType: asset.mime_type
           };
         }
       }

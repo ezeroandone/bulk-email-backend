@@ -174,7 +174,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     .insert({
       user_id: session.user.id,
       name: d.name,
-      status: 'queued',
+      status: d.mode === 'A' ? 'draft' : 'queued',
       mode: d.mode,
       dataset_id: d.dataset_id,
       smtp_config_id: d.smtp_config_id,
@@ -233,7 +233,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const jobInserts = recipients.map((r) => ({
     campaign_id: campaignId,
     recipient_id: r.id,
-    status: 'queued',
+    status: d.mode === 'A' ? 'draft' : 'queued',
     attempt_count: 0,
     max_attempts: 3
   }));
@@ -247,15 +247,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     return json({ success: false, error: 'Failed to create delivery jobs.' }, { status: 500 });
   }
 
-  // 9. Enqueue job IDs to pgmq queue 'email_delivery'
-  const jobIds = jobs.map((j) => j.id as string);
-  await Promise.resolve(locals.supabase.rpc('pgmq_send_batch', {
-    queue_name: 'email_delivery',
-    messages: jobIds.map((id) => JSON.stringify({ job_id: id }))
-  })).catch((err: unknown) => {
-    // Non-fatal — the cron will pick these up anyway
-    console.warn('[campaigns] pgmq_send_batch failed:', err instanceof Error ? err.message : err);
-  });
+  // 9. Enqueue job IDs to pgmq queue 'email_delivery' (skip for Mode A — awaiting file matches)
+  if (d.mode !== 'A') {
+    const jobIds = jobs.map((j) => j.id as string);
+    await Promise.resolve(locals.supabase.rpc('pgmq_send_batch', {
+      queue_name: 'email_delivery',
+      messages: jobIds.map((id) => JSON.stringify({ job_id: id }))
+    })).catch((err: unknown) => {
+      // Non-fatal — the cron will pick these up anyway
+      console.warn('[campaigns] pgmq_send_batch failed:', err instanceof Error ? err.message : err);
+    });
+  }
 
   return json({ success: true, data: { campaign_id: campaignId } }, { status: 201 });
 };
