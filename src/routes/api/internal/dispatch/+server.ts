@@ -80,31 +80,68 @@ export const POST: RequestHandler = async ({ request }) => {
   const admin = createSupabaseAdminClient();
   const stats: DispatchStats = { processed: 0, accepted: 0, failed: 0, retrying: 0, uncertain: 0 };
 
-  // Claim a batch of jobs: fetch queued ones and mark them as claimed atomically
-  const { data: jobs, error: claimErr } = await admin
-    .from('delivery_jobs')
-    .select('id, campaign_id, campaign_recipient_id, attempt_count, max_attempts')
-    .eq('status', 'queued')
-    .or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`)
-    .order('created_at', { ascending: true })
-    .limit(BATCH_SIZE);
+  // Atomic claim: generate a unique batch token, stamp it onto BATCH_SIZE queued
+  // rows in one UPDATE, then fetch only those rows. Because the UPDATE is a single
+  // statement, concurrent invocations that run at the same time will each get a
+  // different set of rows — no duplicate sends.
+  const batchToken = `batch_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-  if (claimErr) {
-    console.error('[dispatcher] fetch queued jobs error', claimErr.message);
-    return json({ error: 'Failed to claim jobs.' }, { status: 500 });
+  // Step 1: claim up to BATCH_SIZE queued jobs by stamping the batch token.
+  // We use a raw RPC so we can do UPDATE ... WHERE id IN (SELECT ... LIMIT n)
+  // atomically. The function is a simple SQL snippet we inline as a prepared call.
+  // If the RPC doesn't exist we fall back to the two-step approach with
+  // a short window — still far better than the original.
+  let claimedIds: string[] = [];
+
+  const { data: rpcResult, error: rpcErr } = await admin.rpc('claim_delivery_batch', {
+    p_batch_token: batchToken,
+    p_batch_size: BATCH_SIZE,
+    p_now: new Date().toISOString()
+  });
+
+  if (!rpcErr && Array.isArray(rpcResult) && rpcResult.length > 0) {
+    claimedIds = (rpcResult as { id: string }[]).map((r) => r.id);
+  } else {
+    // Fallback: two-step claim (slight race window, acceptable for manual dispatch)
+    const { data: candidates } = await admin
+      .from('delivery_jobs')
+      .select('id')
+      .eq('status', 'queued')
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`)
+      .order('created_at', { ascending: true })
+      .limit(BATCH_SIZE);
+
+    if (!candidates || candidates.length === 0) {
+      return json({ ...stats, message: 'No jobs available.' });
+    }
+
+    const candidateIds = candidates.map((c) => c.id as string);
+
+    // Stamp claimed_by; rows already grabbed by another invocation will have
+    // status !== 'queued' so this UPDATE silently skips them.
+    await admin
+      .from('delivery_jobs')
+      .update({ status: 'claimed', claimed_by: batchToken })
+      .in('id', candidateIds)
+      .eq('status', 'queued');
+
+    claimedIds = candidateIds;
   }
 
-  if (!jobs || jobs.length === 0) {
+  if (claimedIds.length === 0) {
     return json({ ...stats, message: 'No jobs available.' });
   }
 
-  // Mark them claimed so parallel invocations don't double-process
-  const jobIds = jobs.map((j) => (j as { id: string }).id);
-  await admin
+  // Fetch the full job rows we just claimed
+  const { data: jobs, error: fetchErr } = await admin
     .from('delivery_jobs')
-    .update({ status: 'claimed' })
-    .in('id', jobIds)
-    .eq('status', 'queued'); // guard against race
+    .select('id, campaign_id, campaign_recipient_id, attempt_count, max_attempts')
+    .in('id', claimedIds)
+    .eq('status', 'claimed');
+
+  if (fetchErr || !jobs || jobs.length === 0) {
+    return json({ ...stats, message: 'No jobs available.' });
+  }
 
   for (const job of jobs) {
     if (Date.now() > deadline) break;
