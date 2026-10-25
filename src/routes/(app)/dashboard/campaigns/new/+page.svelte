@@ -313,6 +313,9 @@
     // Step 2: Upload files
     launchProgress[1] = { label: 'Uploading files', status: 'running' };
     try {
+      if (selectedFiles.length === 0) {
+        throw new Error('No files selected. Please go back to step 4 and re-select your files before launching.');
+      }
       const formData = new FormData();
       for (const file of selectedFiles) {
         formData.append('files', file);
