@@ -61,6 +61,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     return json({ success: false, error: 'File matching is only available for Mode A campaigns.' }, { status: 422 });
   }
 
+  if ((campaign.status as string) !== 'draft') {
+    return json({ success: false, error: 'Cannot rematch a campaign that is no longer a draft.' }, { status: 422 });
+  }
+
   const admin = createSupabaseAdminClient();
 
   // Load all campaign recipients
@@ -83,11 +87,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     return json({ success: false, error: 'Failed to load document assets.' }, { status: 500 });
   }
 
-  // Build map: (filename without extension, trimmed, lowercase) → asset id
-  const assetMap = new Map<string, string>();
+  // Build map: normalized key → { asset id, original filename }
+  const assetMap = new Map<string, { id: string; originalName: string }>();
   for (const asset of assets ?? []) {
     const nameWithoutExt = (asset.name as string).replace(/\.[^.]+$/, '').trim().toLowerCase();
-    assetMap.set(nameWithoutExt, asset.id as string);
+    assetMap.set(nameWithoutExt, { id: asset.id as string, originalName: asset.name as string });
   }
 
   // Build upsert rows
@@ -106,11 +110,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     const recipientKey = String(variables[match_column] ?? '').trim().toLowerCase();
 
     if (recipientKey && assetMap.has(recipientKey)) {
-      const assetId = assetMap.get(recipientKey)!;
+      const entry = assetMap.get(recipientKey)!;
       matches.push({
         campaign_id:           id,
         campaign_recipient_id: recipient.id as string,
-        document_asset_id:     assetId,
+        document_asset_id:     entry.id,
         match_method:          'filename_column',
         confidence:            1.0
       });
@@ -129,11 +133,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     }
   }
 
-  // Compute unmatched asset names (assets that had no matching recipient)
+  // Compute unmatched asset names (original filenames of assets with no matching recipient)
   const unmatchedFiles: string[] = [];
-  for (const [key] of assetMap) {
+  for (const [key, entry] of assetMap) {
     if (!matchedAssetKeys.has(key)) {
-      unmatchedFiles.push(key);
+      unmatchedFiles.push(entry.originalName);
     }
   }
 

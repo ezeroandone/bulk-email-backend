@@ -64,6 +64,18 @@ async function processFile(
     return { ok: false, error: `"${filename}": storage upload failed — ${storageErr.message}` };
   }
 
+  // Check for existing asset at this path (retry-safe)
+  const { data: existing } = await admin
+    .from('document_assets')
+    .select('id, name, storage_path')
+    .eq('storage_path', uploadPath)
+    .maybeSingle();
+
+  if (existing) {
+    // Already uploaded — return the existing asset (idempotent retry)
+    return { ok: true, asset: existing as { id: string; name: string; storage_path: string } };
+  }
+
   const { data: asset, error: dbErr } = await admin
     .from('document_assets')
     .insert({

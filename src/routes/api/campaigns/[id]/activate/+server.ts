@@ -71,11 +71,12 @@ export const POST: RequestHandler = async ({ locals, params }) => {
     );
   }
 
-  // Transition campaign to 'queued'
-  const { error: campErr } = await locals.supabase
+  // Transition campaign to 'queued' — use admin client to bypass RLS
+  const { error: campErr } = await admin
     .from('campaigns')
     .update({ status: 'queued' })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', session.user.id);
 
   if (campErr) {
     return json({ success: false, error: 'Failed to update campaign status.' }, { status: 500 });
