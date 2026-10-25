@@ -159,9 +159,16 @@ export const POST: RequestHandler = async ({ request }) => {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[dispatcher] unhandled error for job', j.id, msg);
-      // Treat unexpected errors as uncertain
-      await markUncertain(admin, j.id, j.campaign_id, j.campaign_recipient_id, j.attempt_count, 'UNHANDLED', msg);
-      stats.uncertain++;
+      // Mark as failed so it doesn't stay claimed forever
+      await admin
+        .from('delivery_jobs')
+        .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: msg })
+        .eq('id', j.id);
+      await admin
+        .from('campaign_recipients')
+        .update({ status: 'failed' })
+        .eq('id', j.campaign_recipient_id);
+      stats.failed++;
     }
 
     stats.processed++;
