@@ -16,6 +16,19 @@
     window.location.href = url.toString();
   }
 
+  async function handleDelete(e: Event, campaignId: string, campaignName: string) {
+    e.preventDefault();
+    if (!confirm(`Delete "${campaignName}"? This removes all recipients, jobs, and file matches. This cannot be undone.`)) return;
+    const form = e.currentTarget as HTMLFormElement;
+    const res = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const j = await res.json().catch(() => ({}));
+      alert((j as Record<string, unknown>).error ?? 'Failed to delete campaign');
+    }
+  }
+
   function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
@@ -144,18 +157,7 @@
                 <td class="num-col count-failed">—</td>
                 <td class="date-col">{fmtDate(campaign.created_at)}</td>
                 <td class="action-col">
-                  <form method="POST" action="?/delete" onsubmit={async (e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget as HTMLFormElement;
-                    if (!confirm(`Delete "${campaign.name}"? This removes all recipients, jobs, and file matches. This cannot be undone.`)) return;
-                    const res = await fetch(form.action, { method: 'POST', body: new FormData(form) });
-                    if (res.ok) {
-                      window.location.reload();
-                    } else {
-                      const j = await res.json().catch(() => ({}));
-                      alert((j as Record<string, unknown>).error ?? 'Failed to delete campaign');
-                    }
-                  }}">
+                  <form method="POST" action="?/delete" onsubmit={(e) => handleDelete(e, campaign.id, campaign.name)}>
                     <input type="hidden" name="campaign_id" value={campaign.id} />
                     <button type="submit" class="delete-btn" title="Delete campaign" aria-label="Delete campaign">
                       <span class="material-symbols-outlined">delete</span>
