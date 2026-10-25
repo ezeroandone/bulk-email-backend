@@ -103,10 +103,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
   const d = parsed.data;
 
-  // 1. Validate auth already done. Validate dataset ownership + row count
+  // 1. Validate dataset ownership + row count
   const { data: dataset, error: dsErr } = await locals.supabase
     .from('datasets')
-    .select('id, row_count, columns, preview_rows')
+    .select('id, row_count')
     .eq('id', d.dataset_id)
     .eq('user_id', session.user.id)
     .maybeSingle();
