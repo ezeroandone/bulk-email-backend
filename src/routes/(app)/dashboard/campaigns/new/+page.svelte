@@ -310,19 +310,23 @@
       return;
     }
 
-    // Step 2: Upload files
+    // Step 2: Upload files (in batches of 5 to avoid 413 payload limit)
     launchProgress[1] = { label: 'Uploading files', status: 'running' };
     try {
       if (selectedFiles.length === 0) {
         throw new Error('No files selected. Please go back to step 4 and re-select your files before launching.');
       }
-      const formData = new FormData();
-      for (const file of selectedFiles) {
-        formData.append('files', file);
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+        const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+        const formData = new FormData();
+        for (const file of batch) {
+          formData.append('files', file);
+        }
+        const res = await fetch(`/api/campaigns/${launchCampaignId}/files`, { method: 'POST', body: formData });
+        const json = await res.json() as { success: boolean; error?: string };
+        if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
       }
-      const res = await fetch(`/api/campaigns/${launchCampaignId}/files`, { method: 'POST', body: formData });
-      const json = await res.json() as { success: boolean; error?: string };
-      if (!res.ok || !json.success) throw new Error(json.error ?? `Failed (${res.status})`);
       launchProgress[1] = { label: 'Uploading files', status: 'done' };
     } catch (err) {
       launchProgress[1] = { label: 'Uploading files', status: 'error' };
