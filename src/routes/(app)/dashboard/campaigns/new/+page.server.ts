@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         .select('data')
         .eq('dataset_id', ds.id)
         .order('row_index', { ascending: true })
-        .limit(5);
+        .limit(100);
       return { ...ds, preview_rows: (rows ?? []).map(r => r.data) };
     })
   );
