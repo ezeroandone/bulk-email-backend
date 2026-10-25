@@ -70,7 +70,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   // Load all campaign recipients
   const { data: recipients, error: recErr } = await locals.supabase
     .from('campaign_recipients')
-    .select('id, variables')
+    .select('id, row_data')
     .eq('campaign_id', id);
 
   if (recErr) {
@@ -106,7 +106,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   const matchedAssetKeys = new Set<string>();
 
   for (const recipient of recipients ?? []) {
-    const variables = (recipient.variables ?? {}) as Record<string, unknown>;
+    const variables = (recipient.row_data ?? {}) as Record<string, unknown>;
     const rawValue = String(variables[match_column] ?? '').trim();
     const recipientKey = rawValue.toLowerCase();
 
