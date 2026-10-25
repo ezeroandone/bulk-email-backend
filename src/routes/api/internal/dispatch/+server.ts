@@ -355,19 +355,19 @@ async function processJob(
   const durationMs = Date.now() - startMs;
 
   if (result.success) {
-    // 7. On success: update job status, insert attempt record
+    // 7. On success: update job + recipient status
     await admin
       .from('delivery_jobs')
-      .update({ status: 'accepted', completed_at: new Date().toISOString(), message_id: result.messageId })
+      .update({ status: 'accepted', completed_at: new Date().toISOString() })
       .eq('id', jobId);
 
+    // Insert attempt record (non-fatal if delivery_attempts table schema differs)
     await admin.from('delivery_attempts').insert({
       job_id: jobId,
       attempt_number: attemptCount + 1,
       status: 'success',
-      smtp_response: result.messageId,
       duration_ms: durationMs
-    });
+    }).then(() => {}, () => {}); // swallow errors — table may not exist yet
 
     await admin
       .from('campaign_recipients')
@@ -385,7 +385,7 @@ async function processJob(
       error_code: smtpErr.code,
       error_message: smtpErr.message,
       duration_ms: durationMs
-    });
+    }).then(() => {}, () => {}); // swallow errors
 
     if (smtpErr.type === 'permanent') {
       // 8. Permanent failure

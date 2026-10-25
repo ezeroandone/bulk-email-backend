@@ -33,16 +33,28 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     return json({ success: false, error: 'Campaign not found.' }, { status: 404 });
   }
 
-  // Load live stats from delivery_jobs
+  // Live stats: read from campaign_recipients (correctly updated by dispatcher)
+  const { data: recipientStats } = await locals.supabase
+    .from('campaign_recipients')
+    .select('status')
+    .eq('campaign_id', id);
+
+  // Also read delivery_jobs for queued/claimed/retrying counts
   const { data: jobStats } = await locals.supabase
     .from('delivery_jobs')
     .select('status')
     .eq('campaign_id', id);
 
-  const counts: Record<string, number> = {};
+  const rCounts: Record<string, number> = {};
+  for (const r of recipientStats ?? []) {
+    const s = r.status as string;
+    rCounts[s] = (rCounts[s] ?? 0) + 1;
+  }
+
+  const jCounts: Record<string, number> = {};
   for (const job of jobStats ?? []) {
     const s = job.status as string;
-    counts[s] = (counts[s] ?? 0) + 1;
+    jCounts[s] = (jCounts[s] ?? 0) + 1;
   }
 
   return json({
@@ -51,13 +63,13 @@ export const GET: RequestHandler = async ({ locals, params }) => {
       campaign,
       stats: {
         total: (jobStats ?? []).length,
-        queued: counts['queued'] ?? 0,
-        claimed: counts['claimed'] ?? 0,
-        accepted: counts['accepted'] ?? 0,
-        failed: counts['failed'] ?? 0,
-        retrying: counts['retrying'] ?? 0,
-        cancelled: counts['cancelled'] ?? 0,
-        uncertain: counts['uncertain'] ?? 0
+        queued: jCounts['queued'] ?? 0,
+        claimed: jCounts['claimed'] ?? 0,
+        accepted: rCounts['accepted'] ?? 0,
+        failed: rCounts['failed'] ?? 0,
+        retrying: rCounts['retrying'] ?? 0,
+        cancelled: jCounts['cancelled'] ?? 0,
+        uncertain: rCounts['uncertain'] ?? 0
       }
     }
   });

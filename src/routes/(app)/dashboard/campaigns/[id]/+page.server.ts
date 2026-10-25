@@ -21,16 +21,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     error(404, 'Campaign not found');
   }
 
-  // Initial stats snapshot
+  // Stats: use campaign_recipients for terminal states (correctly updated by dispatcher)
+  // and delivery_jobs for in-flight states (queued/claimed)
   const { data: jobStats } = await locals.supabase
     .from('delivery_jobs')
     .select('status')
     .eq('campaign_id', params.id);
 
-  const counts: Record<string, number> = {};
+  const { data: recipientStats } = await locals.supabase
+    .from('campaign_recipients')
+    .select('status')
+    .eq('campaign_id', params.id);
+
+  const jCounts: Record<string, number> = {};
   for (const job of jobStats ?? []) {
     const s = job.status as string;
-    counts[s] = (counts[s] ?? 0) + 1;
+    jCounts[s] = (jCounts[s] ?? 0) + 1;
+  }
+
+  const rCounts: Record<string, number> = {};
+  for (const r of recipientStats ?? []) {
+    const s = r.status as string;
+    rCounts[s] = (rCounts[s] ?? 0) + 1;
   }
 
   // Load first page of recipients (separate query to avoid FK ambiguity)
@@ -69,13 +81,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     campaign,
     stats: {
       total: (jobStats ?? []).length,
-      queued: counts['queued'] ?? 0,
-      claimed: counts['claimed'] ?? 0,
-      accepted: counts['accepted'] ?? 0,
-      failed: counts['failed'] ?? 0,
-      retrying: counts['retrying'] ?? 0,
-      cancelled: counts['cancelled'] ?? 0,
-      uncertain: counts['uncertain'] ?? 0
+      queued: jCounts['queued'] ?? 0,
+      claimed: jCounts['claimed'] ?? 0,
+      accepted: rCounts['accepted'] ?? 0,
+      failed: rCounts['failed'] ?? 0,
+      retrying: rCounts['retrying'] ?? 0,
+      cancelled: jCounts['cancelled'] ?? 0,
+      uncertain: rCounts['uncertain'] ?? 0
     },
     recipients: recipients ?? []
   };
