@@ -162,8 +162,6 @@
   // ── Report download ────────────────────────────────────────────────────────
 
   function downloadReport() {
-
-  function downloadReport() {
     window.location.href = `/api/campaigns/${campaign.id}/report`;
   }
 
