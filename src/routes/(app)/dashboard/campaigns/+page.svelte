@@ -117,6 +117,7 @@
               <th scope="col">Sent</th>
               <th scope="col">Failed</th>
               <th scope="col">Created</th>
+              <th scope="col" class="action-col"></th>
             </tr>
           </thead>
           <tbody>
@@ -142,6 +143,25 @@
                 <td class="num-col count-sent">—</td>
                 <td class="num-col count-failed">—</td>
                 <td class="date-col">{fmtDate(campaign.created_at)}</td>
+                <td class="action-col">
+                  <form method="POST" action="?/delete" onsubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget as HTMLFormElement;
+                    if (!confirm(`Delete "${campaign.name}"? This removes all recipients, jobs, and file matches. This cannot be undone.`)) return;
+                    const res = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+                    if (res.ok) {
+                      window.location.reload();
+                    } else {
+                      const j = await res.json().catch(() => ({}));
+                      alert((j as Record<string, unknown>).error ?? 'Failed to delete campaign');
+                    }
+                  }}">
+                    <input type="hidden" name="campaign_id" value={campaign.id} />
+                    <button type="submit" class="delete-btn" title="Delete campaign" aria-label="Delete campaign">
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
+                  </form>
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -248,4 +268,26 @@
   .count-sent  { color: var(--color-success); font-weight: 500; }
   .count-failed { color: var(--color-error);  font-weight: 500; }
   .date-col { white-space: nowrap; color: var(--color-text-muted); }
+
+  .action-col { width: 3rem; text-align: center; }
+
+  .delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+
+  .delete-btn:hover {
+    background: var(--color-error-light);
+    color: var(--color-error);
+  }
+
+  .delete-btn .material-symbols-outlined { font-size: 1.125rem; }
 </style>

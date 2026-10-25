@@ -1,17 +1,24 @@
 <script lang="ts">
   import type { LayoutProps } from './$types';
 
-  let { children }: LayoutProps = $props();
+  let { data, children }: LayoutProps = $props();
 
   let mobileMenuOpen = $state(false);
 
-  const navLinks = [
+  const baseLinks = [
     { href: '/features', label: 'Features' },
     { href: '/how-it-works', label: 'How It Works' },
     { href: '/pricing', label: 'Pricing' },
     { href: '/docs', label: 'Docs' },
-    { href: '/login', label: 'Login' }
   ];
+
+  const authLink = $derived(
+    data.loggedIn
+      ? { href: '/dashboard', label: 'Dashboard' }
+      : { href: '/login', label: 'Login' }
+  );
+
+  const navLinks = $derived([...baseLinks, authLink]);
 
   function toggleMobileMenu() {
     mobileMenuOpen = !mobileMenuOpen;
@@ -36,7 +43,7 @@
         <!-- Desktop nav -->
         <div class="hidden md:flex items-center gap-1">
           {#each navLinks as link}
-            {#if link.label === 'Login'}
+            {#if link.label === 'Login' || link.label === 'Dashboard'}
               <a
                 href={link.href}
                 class="ml-4 px-4 py-2 rounded-md bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors no-underline"
@@ -74,7 +81,7 @@
             <a
               href={link.href}
               onclick={closeMobileMenu}
-              class="px-3 py-2 text-sm text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-md transition-colors no-underline {link.label === 'Login' ? 'mt-2 bg-brand-600 text-white hover:bg-brand-700 text-center' : ''}"
+              class="px-3 py-2 text-sm text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-md transition-colors no-underline {link.label === 'Login' || link.label === 'Dashboard' ? 'mt-2 bg-brand-600 text-white hover:bg-brand-700 text-center' : ''}"
             >
               {link.label}
             </a>

@@ -32,12 +32,14 @@
 >
   <!-- Brand -->
   <div class="sidebar-brand">
-    <span class="material-symbols-outlined icon-lg brand-icon" aria-hidden="true">
-      mark_email_read
-    </span>
-    {#if !collapsed}
-      <span class="brand-name">{PUBLIC_APP_NAME}</span>
-    {/if}
+    <a href="/" class="brand-link" title="Go to homepage">
+      <span class="material-symbols-outlined icon-lg brand-icon" aria-hidden="true">
+        mark_email_read
+      </span>
+      {#if !collapsed}
+        <span class="brand-name">{PUBLIC_APP_NAME}</span>
+      {/if}
+    </a>
   </div>
 
   <!-- Nav links -->
@@ -103,12 +105,24 @@
   .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
     padding: 1.25rem 1rem;
     border-bottom: 1px solid var(--color-border);
     min-height: 4rem;
     overflow: hidden;
     white-space: nowrap;
+  }
+
+  .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    width: 100%;
+  }
+
+  .brand-link:hover .brand-name {
+    color: var(--color-brand);
   }
 
   .brand-icon {

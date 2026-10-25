@@ -154,7 +154,7 @@
           <rect x="220" y={222 + row * 44} width="100" height="14" rx="3" fill="#e4e4e7"/>
           <rect x="360" y={222 + row * 44} width="180" height="14" rx="3" fill="#e4e4e7"/>
           <rect x="580" y={222 + row * 44} width="80" height="14" rx="3" fill="#e4e4e7"/>
-          <rect x="700" y={218 + row * 44} width="60" height="20" rx="10" fill={row === 0 ? '#dcfce7' : row === 1 ? '#fef9c3' : '#f4f4f5'}/>
+          <rect x="700" y={218 + row * 44} width="60" height="20" rx="10" fill="#dcfce7"/>
         {/each}
         <rect x="215" y="183" width="80" height="14" rx="3" fill="#d4d4d8"/>
         <rect x="355" y="183" width="100" height="14" rx="3" fill="#d4d4d8"/>

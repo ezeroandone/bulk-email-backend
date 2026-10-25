@@ -64,7 +64,7 @@
   <!-- Right controls -->
   <div class="topnav-right">
     <!-- Credit balance -->
-    <a href="/billing" class="credit-badge" aria-label="Credit balance">
+    <a href="/dashboard/billing" class="credit-badge" aria-label="Credit balance">
       <span class="material-symbols-outlined icon-sm" aria-hidden="true">toll</span>
       <span>{$creditBalance.available.toLocaleString()}</span>
     </a>
@@ -119,7 +119,7 @@
             <span class="user-email">{user?.email ?? ''}</span>
           </div>
           <hr class="dropdown-divider" />
-          <a href="/settings" class="dropdown-item" role="menuitem" onclick={closeMenu}>
+          <a href="/dashboard/settings/smtp" class="dropdown-item" role="menuitem" onclick={closeMenu}>
             <span class="material-symbols-outlined icon-sm" aria-hidden="true">settings</span>
             Settings
           </a>
