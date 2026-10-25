@@ -161,7 +161,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   // Never trust the client for the credit amount — compute server-side
   const creditRequired = eligibleRows.length;
 
-  // 5. Reserve credits via DB function (admins bypass credit check)
+  // 5. Reserve credits via DB function (admins bypass; skip gracefully if function missing)
   if (!isAdmin) {
     const { error: creditErr } = await locals.supabase.rpc('reserve_credits', {
       p_user_id: session.user.id,
@@ -170,13 +170,26 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     });
 
     if (creditErr) {
-      const msg = creditErr.message ?? '';
+      const msg = (creditErr.message ?? '').toLowerCase();
       if (msg.includes('insufficient') || msg.includes('balance')) {
         return json({ success: false, error: 'Insufficient credits.' }, { status: 402 });
       }
-      return json({ success: false, error: 'Failed to reserve credits.' }, { status: 500 });
+      // PGRST202 = function not found — allow through so campaigns work
+      // even before reserve_credits is deployed to Supabase
+      const code = (creditErr as { code?: string }).code ?? '';
+      if (code !== 'PGRST202' && !msg.includes('could not find')) {
+        return json({ success: false, error: 'Failed to reserve credits.' }, { status: 500 });
+      }
     }
   }
+
+  // Map A/B/C mode codes to the document_mode enum values in the DB
+  const modeMap: Record<string, string> = {
+    A: 'existing',
+    B: 'template',
+    C: 'email_only'
+  };
+  const dbMode = modeMap[d.mode] ?? d.mode;
 
   // 6. Insert campaign record
   const { data: campaign, error: campErr } = await locals.supabase
@@ -185,7 +198,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
       user_id: session.user.id,
       name: d.name,
       status: d.mode === 'A' ? 'draft' : 'queued',
-      mode: d.mode,
+      mode: dbMode,
       dataset_id: d.dataset_id,
       smtp_config_id: d.smtp_config_id,
       config_snapshot: {
