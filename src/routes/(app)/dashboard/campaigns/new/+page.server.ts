@@ -24,8 +24,21 @@ export const load: PageServerLoad = async ({ locals }) => {
       .order('created_at', { ascending: false })
   ]);
 
+  // Load up to 5 preview rows for each dataset so the match preview works
+  const datasetsWithRows = await Promise.all(
+    (datasets ?? []).map(async (ds) => {
+      const { data: rows } = await locals.supabase
+        .from('dataset_rows')
+        .select('data')
+        .eq('dataset_id', ds.id)
+        .order('row_index', { ascending: true })
+        .limit(5);
+      return { ...ds, preview_rows: (rows ?? []).map(r => r.data) };
+    })
+  );
+
   return {
-    datasets: datasets ?? [],
+    datasets: datasetsWithRows,
     smtpConfigs: smtpConfigs ?? [],
     templates: templates ?? []
   };
