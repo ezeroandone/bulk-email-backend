@@ -119,7 +119,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     return json({ success: false, error: 'Campaign not found.' }, { status: 404 });
   }
 
-  if ((campaign.mode as string) !== 'A') {
+  if ((campaign.mode as string) !== 'A' && (campaign.mode as string) !== 'existing') {
     return json({ success: false, error: 'File upload is only available for Mode A campaigns.' }, { status: 422 });
   }
 
