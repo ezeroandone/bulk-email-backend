@@ -387,7 +387,18 @@
     if (!matchColumn || selectedFiles.length === 0) return [];
     return selectedFiles.map(f => {
       const fileKey = f.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
-      const match = previewRecipients.find(r => String((r as Record<string,string>)[matchColumn] ?? '').trim().toLowerCase() === fileKey);
+      const fileNum = Number(fileKey);
+      const match = previewRecipients.find(r => {
+        const rawVal = String((r as Record<string,string>)[matchColumn] ?? '').trim();
+        const recKey = rawVal.toLowerCase();
+        if (recKey === fileKey) return true;
+        // numeric normalisation: "01" == "1", "1" == "01"
+        const recNum = Number(rawVal);
+        if (!isNaN(recNum) && !isNaN(fileNum) && isFinite(recNum) && isFinite(fileNum)) {
+          return recNum === fileNum;
+        }
+        return false;
+      });
       return { filename: f.name, matchValue: match ? (match as Record<string,string>)[matchColumn] : null, matched: !!match };
     });
   });

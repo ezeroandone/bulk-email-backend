@@ -107,10 +107,41 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
   for (const recipient of recipients ?? []) {
     const variables = (recipient.variables ?? {}) as Record<string, unknown>;
-    const recipientKey = String(variables[match_column] ?? '').trim().toLowerCase();
+    const rawValue = String(variables[match_column] ?? '').trim();
+    const recipientKey = rawValue.toLowerCase();
 
-    if (recipientKey && assetMap.has(recipientKey)) {
-      const entry = assetMap.get(recipientKey)!;
+    // Try direct match first, then numeric normalisation (handles leading-zero
+    // mismatches, e.g. spreadsheet "1" matching filename "01", or vice versa)
+    let matchKey: string | undefined;
+    if (assetMap.has(recipientKey)) {
+      matchKey = recipientKey;
+    } else {
+      // If the recipient value looks like a number, try zero-padded variants
+      const num = Number(rawValue);
+      if (!isNaN(num) && isFinite(num)) {
+        // Try widths 1–4 (e.g. "1" → "01", "001", "0001")
+        for (let pad = 1; pad <= 4; pad++) {
+          const padded = String(num).padStart(pad + 1, '0').toLowerCase();
+          if (assetMap.has(padded)) { matchKey = padded; break; }
+        }
+        // Also try the plain number as string (filename "1" against value "01")
+        if (!matchKey && assetMap.has(String(num))) {
+          matchKey = String(num);
+        }
+      }
+      // If the filename key looks numeric, try stripping its leading zeros
+      if (!matchKey) {
+        for (const [key] of assetMap) {
+          const keyNum = Number(key);
+          if (!isNaN(keyNum) && isFinite(keyNum) && keyNum === num) {
+            matchKey = key; break;
+          }
+        }
+      }
+    }
+
+    if (matchKey && assetMap.has(matchKey)) {
+      const entry = assetMap.get(matchKey)!;
       matches.push({
         campaign_id:           id,
         campaign_recipient_id: recipient.id as string,
@@ -118,7 +149,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
         match_method:          'filename_column',
         confidence:            1.0
       });
-      matchedAssetKeys.add(recipientKey);
+      matchedAssetKeys.add(matchKey);
     }
   }
 
