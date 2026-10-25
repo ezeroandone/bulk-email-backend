@@ -1,0 +1,7 @@
+{
+  "task_id": "task-mode-a-attach",
+  "task_description": "Build the Mode A 'attach existing file per recipient' flow: file upload API, file matching API, campaign activation API, dispatch bug fixes, campaign create draft status, and wizard UI for upload dropzone, match configuration, and multi-step launch.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

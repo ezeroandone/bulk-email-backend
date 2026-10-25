@@ -1,0 +1,9 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    "activate/+server.ts uses locals.supabase (user-scoped, subject to RLS) to UPDATE campaign status to 'queued', while all other admin writes in the same file use createSupabaseAdminClient. If the campaigns table RLS restricts user-initiated updates, campErr will be null but the row will not change, leaving the campaign stuck in 'draft'. The delivery_jobs update immediately after correctly uses admin. This asymmetry is confirmed; switch the campaign UPDATE to use the admin client.",
+    "match/+server.ts does not guard against campaign.status !== 'draft'. Unlike the files endpoint which returns 422 for non-draft campaigns, match will happily re-write file_matches on an already-queued or running campaign, potentially corrupting in-flight dispatch. Add the same status === 'draft' guard present in files/+server.ts.",
+    "match/+server.ts reports unmatched_files as the lowercased, extension-stripped assetMap keys (e.g. 'john doe') rather than the original asset.name values (e.g. 'John Doe.pdf'). The warning card shown to the user will display unrecognizable mangled names. Fix by storing original names alongside the normalized key in assetMap, e.g. Map<string, { id: string; originalName: string }>, and populating unmatchedFiles from originalName.",
+    "files/+server.ts inserts document_assets rows with .insert() (not upsert). On retry after a partial failure, or if the user re-uploads the same files, duplicate document_assets rows are created for the same userId/campaignId/filename path. The match endpoint queries by metadata->>campaign_id so both rows appear, the second silently overwrites the first in assetMap, and no error is surfaced. Use .upsert() with onConflict on (user_id, storage_path) or add a dedup check before insert."
+  ]
+}

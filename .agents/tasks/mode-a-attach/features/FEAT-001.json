@@ -1,0 +1,21 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix two bugs in the dispatch server and modify the campaign create endpoint so Mode A campaigns are created as 'draft' (preventing premature dispatch before files are matched). Independent of FEAT-002 and FEAT-003 (pure server-side fixes to existing files).",
+  "status": "completed",
+  "steps": [
+    "1. Open src/routes/api/internal/dispatch/+server.ts. In the Mode A block of processJob(), find the file_matches query. Change .eq('recipient_id', recipientId) to .eq('campaign_recipient_id', recipientId). Change .from('campaign-documents') to .from('documents'). Also fix the attachment.filename: the file_matches table has no 'filename' column — update the select to join document_assets: .select('document_assets!document_asset_id(name, storage_path, mime_type)') and derive filename from the joined asset's name field. Update the attachment object to use the joined asset's mime_type instead of hardcoded 'application/pdf'.",
+    "2. Open src/routes/api/campaigns/+server.ts. In the campaign insert (step 6 in the file), change status: 'queued' to status: d.mode === 'A' ? 'draft' : 'queued'. In the delivery_jobs insert (step 8), change status: 'queued' to status: d.mode === 'A' ? 'draft' : 'queued'. Wrap the pgmq_send_batch call (step 9) with: if (d.mode !== 'A') { ... existing enqueue block ... }. This prevents immediate dispatch of Mode A jobs that have no file matches yet."
+  ],
+  "acceptance_criteria": [
+    "npm run check passes with zero errors after these changes",
+    "The dispatch Mode A block now queries file_matches using campaign_recipient_id and reads from the 'documents' bucket",
+    "Creating a Mode A campaign via POST /api/campaigns creates it with status='draft' and delivery_jobs with status='draft'",
+    "Creating a Mode B or Mode C campaign still creates with status='queued' and enqueues immediately (unchanged behaviour)"
+  ],
+  "verification": [
+    "npm run check — must report 0 errors"
+  ],
+  "blocked_reason": null,
+  "findings": "dispatch/+server.ts Mode A block: changed .eq('recipient_id') to .eq('campaign_recipient_id'), changed .select to join document_assets via .select('document_assets!document_asset_id(name, storage_path, mime_type)'), changed storage bucket from 'campaign-documents' to 'documents', derived filename from asset.name and contentType from asset.mime_type (cast via unknown). campaigns/+server.ts: step 6 campaign insert status changed to d.mode === 'A' ? 'draft' : 'queued'; step 8 delivery_jobs insert status same conditional; step 9 pgmq_send_batch wrapped in if (d.mode !== 'A') to prevent premature dispatch. npm run check: 30 errors all pre-existing (same count as before changes); 0 new errors introduced."
+}

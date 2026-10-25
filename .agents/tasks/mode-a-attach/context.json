@@ -1,0 +1,25 @@
+{
+  "project_type": "SvelteKit 5 monorepo, TypeScript strict, Supabase, Vercel deployment",
+  "language": "TypeScript + Svelte 5 (runes syntax: $state, $derived, $props)",
+  "build_system": "Vite + @sveltejs/adapter-vercel. Build: npm run build. Dev: npm run dev. Type-check: npm run check (runs svelte-kit sync + svelte-check).",
+  "test_framework": "vitest (npm run test). Playwright for e2e (npm run test:e2e). No existing unit tests for campaign routes — verify via npm run check.",
+  "build_command": "npm run build",
+  "test_command": "npm run check",
+  "verification_instructions": "Run `npm run check` after every file change to confirm zero TypeScript/Svelte errors. The project has no unit tests for API routes, so type-checking is the primary verification gate.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "Windows workspace (powershell). Paths use backslashes in terminal but forward slashes in code. Do NOT push to git — implement locally only. All new files go under c:\\Users\\hp\\OneDrive\\Documents\\bulkEmail\\src\\.",
+  "contribution_requirements": "No AGENTS.md or CONTRIBUTING.md found. Follow existing patterns: requireSession try/catch for auth, json() returns, zod for request body validation on POST, use locals.supabase for user-scoped queries, createSupabaseAdminClient for storage operations and RLS-bypass writes.",
+  "key_patterns": "API route pattern: import { json } from '@sveltejs/kit'; import { requireSession } from '$lib/server/auth/session'; export const POST: RequestHandler = async ({ locals, params }) => { let session; try { session = requireSession(locals); } catch { return json({ success: false, error: 'Unauthorized' }, { status: 401 }); } ... }. Storage uploads always use createSupabaseAdminClient (imported from '$lib/server/db/supabase'). Campaign sub-routes all live under src/routes/api/campaigns/[id]/<name>/+server.ts. Svelte wizard uses $state runes, no stores.",
+  "relevant_files": [
+    "src/routes/api/campaigns/+server.ts",
+    "src/routes/api/campaigns/[id]/+server.ts",
+    "src/routes/api/campaigns/[id]/start/+server.ts",
+    "src/routes/api/campaigns/[id]/resume/+server.ts",
+    "src/routes/api/internal/dispatch/+server.ts",
+    "src/routes/(app)/dashboard/campaigns/new/+page.svelte",
+    "src/routes/(app)/dashboard/campaigns/new/+page.server.ts",
+    "src/lib/server/auth/session.ts",
+    "src/lib/server/db/supabase.ts"
+  ],
+  "directory_structure": "src/routes/api/campaigns/ — campaign REST API. src/routes/api/campaigns/[id]/ — per-campaign actions (cancel, pause, resume, start, report). src/routes/(app)/dashboard/campaigns/new/ — wizard page. src/lib/server/ — server-side services (auth, db, smtp, documents). src/lib/components/ui/ — shared UI components (Card, Button, VariablePicker)."
+}
