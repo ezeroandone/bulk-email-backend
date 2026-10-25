@@ -33,16 +33,37 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     counts[s] = (counts[s] ?? 0) + 1;
   }
 
-  // Load first page of recipients for the table
-  const { data: recipients } = await locals.supabase
+  // Load first page of recipients (separate query to avoid FK ambiguity)
+  const { data: recipientRows } = await locals.supabase
     .from('campaign_recipients')
-    .select(`
-      id, email, status, row_data,
-      delivery_jobs(attempt_count, error, updated_at)
-    `)
+    .select('id, email, status, row_data')
     .eq('campaign_id', params.id)
     .order('id', { ascending: true })
     .range(0, 49);
+
+  const recipientIds = (recipientRows ?? []).map((r) => r.id as string);
+  const jobMap: Record<string, { attempt_count: number; error: string | null; updated_at: string }> = {};
+
+  if (recipientIds.length > 0) {
+    const { data: jobs } = await locals.supabase
+      .from('delivery_jobs')
+      .select('campaign_recipient_id, attempt_count, error, updated_at')
+      .eq('campaign_id', params.id)
+      .in('campaign_recipient_id', recipientIds);
+
+    for (const j of jobs ?? []) {
+      jobMap[j.campaign_recipient_id as string] = {
+        attempt_count: (j.attempt_count as number) ?? 0,
+        error: j.error as string | null,
+        updated_at: j.updated_at as string
+      };
+    }
+  }
+
+  const recipients = (recipientRows ?? []).map((r) => ({
+    ...r,
+    delivery_job: jobMap[r.id as string] ?? null
+  }));
 
   return {
     campaign,

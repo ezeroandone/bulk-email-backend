@@ -80,38 +80,50 @@ export const POST: RequestHandler = async ({ request }) => {
   const admin = createSupabaseAdminClient();
   const stats: DispatchStats = { processed: 0, accepted: 0, failed: 0, retrying: 0, uncertain: 0 };
 
-  // Claim a batch of jobs
-  const { data: jobs, error: claimErr } = await admin.rpc('claim_delivery_jobs', {
-    batch_size: BATCH_SIZE
-  });
+  // Claim a batch of jobs: fetch queued ones and mark them as claimed atomically
+  const { data: jobs, error: claimErr } = await admin
+    .from('delivery_jobs')
+    .select('id, campaign_id, campaign_recipient_id, attempt_count, max_attempts')
+    .eq('status', 'queued')
+    .or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`)
+    .order('created_at', { ascending: true })
+    .limit(BATCH_SIZE);
 
   if (claimErr) {
-    console.error('[dispatcher] claim_delivery_jobs error', claimErr.message);
+    console.error('[dispatcher] fetch queued jobs error', claimErr.message);
     return json({ error: 'Failed to claim jobs.' }, { status: 500 });
   }
 
-  if (!jobs || (jobs as unknown[]).length === 0) {
+  if (!jobs || jobs.length === 0) {
     return json({ ...stats, message: 'No jobs available.' });
   }
 
-  for (const job of jobs as unknown[]) {
+  // Mark them claimed so parallel invocations don't double-process
+  const jobIds = jobs.map((j) => (j as { id: string }).id);
+  await admin
+    .from('delivery_jobs')
+    .update({ status: 'claimed' })
+    .in('id', jobIds)
+    .eq('status', 'queued'); // guard against race
+
+  for (const job of jobs) {
     if (Date.now() > deadline) break;
 
     const j = job as {
       id: string;
       campaign_id: string;
-      recipient_id: string;
+      campaign_recipient_id: string;
       attempt_count: number;
       max_attempts: number;
     };
 
     try {
-      await processJob(admin, j.id, j.campaign_id, j.recipient_id, j.attempt_count, j.max_attempts, stats);
+      await processJob(admin, j.id, j.campaign_id, j.campaign_recipient_id, j.attempt_count, j.max_attempts, stats);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[dispatcher] unhandled error for job', j.id, msg);
       // Treat unexpected errors as uncertain
-      await markUncertain(admin, j.id, j.campaign_id, j.recipient_id, j.attempt_count, 'UNHANDLED', msg);
+      await markUncertain(admin, j.id, j.campaign_id, j.campaign_recipient_id, j.attempt_count, 'UNHANDLED', msg);
       stats.uncertain++;
     }
 
@@ -306,9 +318,7 @@ async function processJob(
   const durationMs = Date.now() - startMs;
 
   if (result.success) {
-    // 7. On success: settle credit, update job status, insert attempt record
-    await admin.rpc('settle_delivery_credit', { p_job_id: jobId });
-
+    // 7. On success: update job status, insert attempt record
     await admin
       .from('delivery_jobs')
       .update({ status: 'accepted', completed_at: new Date().toISOString(), message_id: result.messageId })
@@ -342,7 +352,6 @@ async function processJob(
 
     if (smtpErr.type === 'permanent') {
       // 8. Permanent failure
-      await admin.rpc('release_reservation', { p_job_id: jobId });
       await admin
         .from('delivery_jobs')
         .update({ status: 'failed', completed_at: new Date().toISOString(), error: smtpErr.message })
@@ -372,7 +381,6 @@ async function processJob(
         stats.retrying++;
       } else {
         // 10. Transient but max attempts exceeded
-        await admin.rpc('release_reservation', { p_job_id: jobId });
         await admin
           .from('delivery_jobs')
           .update({ status: 'failed', completed_at: new Date().toISOString(), error: smtpErr.message })
@@ -402,7 +410,6 @@ async function markFailed(
   code: string,
   message: string
 ): Promise<void> {
-  await admin.rpc('release_reservation', { p_job_id: jobId });
   await admin
     .from('delivery_jobs')
     .update({ status: 'failed', completed_at: new Date().toISOString(), error: message })

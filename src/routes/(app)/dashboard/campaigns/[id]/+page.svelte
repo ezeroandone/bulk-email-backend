@@ -379,7 +379,7 @@
             </tr>
           {:else}
             {#each recipients as r (r.id)}
-              {@const job = (r as Record<string, unknown>).delivery_jobs as {attempt_count?: number; error?: string|null; updated_at?: string} | null}
+              {@const job = (r as Record<string, unknown>).delivery_job as {attempt_count?: number; error?: string|null; updated_at?: string} | null}
               {@const rowData = (r.row_data ?? {}) as Record<string, string>}
               <tr>
                 <td>{rowData.full_name ?? rowData.name ?? '—'}</td>
