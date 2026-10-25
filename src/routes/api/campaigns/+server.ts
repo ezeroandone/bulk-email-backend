@@ -5,6 +5,7 @@
 import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { requireSession } from '$lib/server/auth/session';
+import { createSupabaseAdminClient } from '$lib/server/db/supabase';
 import type { RequestHandler } from './$types';
 
 // ── Validation schema ─────────────────────────────────────────────────────────
@@ -251,7 +252,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     return json({ success: false, error: 'Failed to create recipients.' }, { status: 500 });
   }
 
-  // 8. Insert delivery_jobs rows
+  // 8. Insert delivery_jobs rows (use admin client — RLS blocks user-scoped inserts)
+  const admin = createSupabaseAdminClient();
   const jobInserts = recipients.map((r) => ({
     campaign_id: campaignId,
     campaign_recipient_id: r.id,
@@ -262,7 +264,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     max_attempts: 3
   }));
 
-  const { data: jobs, error: jobsErr } = await locals.supabase
+  const { data: jobs, error: jobsErr } = await admin
     .from('delivery_jobs')
     .insert(jobInserts)
     .select('id');
@@ -274,7 +276,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   // 9. Enqueue job IDs to pgmq queue 'email_delivery' (skip for Mode A — awaiting file matches)
   if (d.mode !== 'A') {
     const jobIds = jobs.map((j) => j.id as string);
-    await Promise.resolve(locals.supabase.rpc('pgmq_send_batch', {
+    await Promise.resolve(admin.rpc('pgmq_send_batch', {
       queue_name: 'email_delivery',
       messages: jobIds.map((id) => JSON.stringify({ job_id: id }))
     })).catch((err: unknown) => {
