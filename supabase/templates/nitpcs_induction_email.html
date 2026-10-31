@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  NITPCS INDUCTION CERTIFICATE — EMAIL TEMPLATE
+  NITPCS = Nigeria IT Professionals in Civil & Public Service
+  ============================================================================
+
+  SUGGESTED SUBJECT LINE (applied separately via config_snapshot.subject_template):
+    "Congratulations on Your NITPCS Induction — Certificate Attached"
+
+  ALTERNATIVE SUBJECTS:
+    • Your NITPCS Induction Certificate — Welcome as a Member
+    • NITPCS Induction: Your Membership Certificate is Attached
+
+  MERGE VARIABLES (replaced by the dispatcher from each recipient's row_data):
+    {{full_name}}  Recipient's full name
+    {{mem_no}}     Membership number
+    {{s_no}}       Serial number
+    {{email}}      Recipient's email address (used in the footer)
+
+  USAGE / NOTES:
+    - All styling is inline CSS; there are NO <style> tags (email clients strip them).
+    - Layout is table-based for maximum client compatibility (Outlook, Gmail, etc.).
+    - A personalized JPG certificate is ATTACHED to each email by the dispatcher
+      (campaign Mode A: a matched document asset per recipient).
+    - Before sending, replace the bracketed contact placeholders in the footer
+      ([contact email], [website], [phone]) with NITPCS official details.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>NITPCS Induction Certificate</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eaeff3;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#243447;">
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eaeff3;">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+
+        <!-- Main card: max-width 600px, fluid to 100% on mobile -->
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 3px 14px rgba(13,59,92,0.14);">
+
+          <!-- Header band (deep blue) with styled-text logo -->
+          <tr>
+            <td style="background-color:#0d3b5c;padding:30px 28px;text-align:center;">
+              <div style="font-size:30px;font-weight:700;letter-spacing:3px;color:#ffffff;line-height:1.1;">NITPCS</div>
+              <div style="font-size:12px;letter-spacing:1px;color:#cfe0ee;margin-top:8px;text-transform:uppercase;">Nigeria IT Professionals in Civil &amp; Public Service</div>
+            </td>
+          </tr>
+
+          <!-- Deep-green accent strip -->
+          <tr>
+            <td style="background-color:#15633e;height:5px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:34px 28px 8px 28px;">
+              <div style="font-size:11px;letter-spacing:2px;color:#15633e;font-weight:700;text-transform:uppercase;">Induction Confirmation</div>
+              <h1 style="margin:10px 0 20px 0;font-size:22px;line-height:1.3;color:#0d3b5c;font-weight:700;">Congratulations on Your Induction</h1>
+
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.65;color:#33475b;">Dear <strong style="color:#0d3b5c;">{{full_name}}</strong>,</p>
+
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.65;color:#33475b;">It is with great pleasure that we formally announce your successful induction as a member of the <strong>Nigeria IT Professionals in Civil &amp; Public Service (NITPCS)</strong>. Following the review of your credentials and the completion of the induction process, you are now welcomed into a distinguished community of IT professionals serving across the Nigerian civil and public service.</p>
+
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.65;color:#33475b;">Your induction signifies a commitment to excellence, integrity, and the advancement of professional standards in information technology within the public sector. We look forward to your valuable contributions to the growth of the profession and to NITPCS.</p>
+
+              <!-- Certificate reference callout -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;background-color:#f1f7f3;border-left:4px solid #15633e;border-radius:6px;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <div style="font-size:14px;font-weight:700;color:#15633e;margin-bottom:4px;">Your Induction Certificate is Attached</div>
+                    <div style="font-size:13px;line-height:1.55;color:#3a4f42;">A personalized certificate (JPG image) has been attached to this email. Please download and save it for your records. We kindly ask that you confirm receipt at your earliest convenience.</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Membership details -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;border-top:1px solid #e3e8ee;border-bottom:1px solid #e3e8ee;">
+                <tr>
+                  <td style="padding:13px 0;font-size:14px;color:#6b7a8a;width:55%;border-bottom:1px solid #eef2f6;">Membership Number</td>
+                  <td style="padding:13px 0;font-size:14px;color:#0d3b5c;font-weight:700;text-align:right;white-space:nowrap;border-bottom:1px solid #eef2f6;">{{mem_no}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 0;font-size:14px;color:#6b7a8a;width:55%;">Serial Number</td>
+                  <td style="padding:13px 0;font-size:14px;color:#0d3b5c;font-weight:700;text-align:right;white-space:nowrap;">{{s_no}}</td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 6px 0;font-size:15px;line-height:1.65;color:#33475b;">Once again, congratulations on this well-deserved milestone. We are proud to count you among our inductees and look forward to walking this professional journey with you.</p>
+
+              <p style="margin:18px 0 0 0;font-size:15px;line-height:1.65;color:#33475b;">Warm regards,</p>
+              <p style="margin:4px 0 0 0;font-size:15px;line-height:1.55;color:#0d3b5c;font-weight:700;">The Induction Committee</p>
+              <p style="margin:2px 0 0 0;font-size:13px;line-height:1.55;color:#6b7a8a;">Nigeria IT Professionals in Civil &amp; Public Service</p>
+            </td>
+          </tr>
+
+          <!-- Footer (deep blue) -->
+          <tr>
+            <td style="background-color:#0d3b5c;padding:24px 28px;">
+              <div style="font-size:13px;font-weight:700;color:#ffffff;letter-spacing:1px;">NITPCS</div>
+              <div style="font-size:11px;color:#cfe0ee;margin-top:4px;line-height:1.5;">Nigeria IT Professionals in Civil &amp; Public Service</div>
+              <div style="height:1px;background-color:#1c4f78;margin:12px 0;font-size:0;line-height:0;">&nbsp;</div>
+              <div style="font-size:11px;color:#a9c2d8;line-height:1.7;">
+                Email: [contact email] &nbsp;•&nbsp; Web: [website] &nbsp;•&nbsp; Tel: [phone]
+              </div>
+              <div style="font-size:10px;color:#7fa3c0;margin-top:12px;line-height:1.5;">This message was sent to {{email}} in connection with your NITPCS induction. Please do not reply directly to this automated message.</div>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Main card -->
+
+        <div style="max-width:600px;width:100%;text-align:center;font-size:11px;color:#8a99a8;margin-top:14px;">&copy; NITPCS. All rights reserved.</div>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
