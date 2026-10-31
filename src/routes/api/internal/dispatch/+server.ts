@@ -162,7 +162,7 @@ export const POST: RequestHandler = async ({ request }) => {
       // Mark as failed so it doesn't stay claimed forever
       await admin
         .from('delivery_jobs')
-        .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: msg })
+      .update({ status: 'failed', last_error: msg })
         .eq('id', j.id);
       await admin
         .from('campaign_recipients')
@@ -365,7 +365,7 @@ async function processJob(
     // 7. On success: update job + recipient status
     await admin
       .from('delivery_jobs')
-      .update({ status: 'accepted', completed_at: new Date().toISOString() })
+      .update({ status: 'accepted' })
       .eq('id', jobId);
 
     // Insert attempt record (non-fatal if delivery_attempts table schema differs)
@@ -398,7 +398,7 @@ async function processJob(
       // 8. Permanent failure
       await admin
         .from('delivery_jobs')
-        .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: smtpErr.message })
+        .update({ status: 'failed', last_error: smtpErr.message })
         .eq('id', jobId);
       await admin
         .from('campaign_recipients')
@@ -427,7 +427,7 @@ async function processJob(
         // 10. Transient but max attempts exceeded
         await admin
           .from('delivery_jobs')
-          .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: smtpErr.message })
+          .update({ status: 'failed', last_error: smtpErr.message })
           .eq('id', jobId);
         await admin
           .from('campaign_recipients')
@@ -456,7 +456,7 @@ async function markFailed(
 ): Promise<void> {
   await admin
     .from('delivery_jobs')
-    .update({ status: 'failed', completed_at: new Date().toISOString(), last_error: message })
+    .update({ status: 'failed', last_error: message })
     .eq('id', jobId);
   await admin
     .from('campaign_recipients')
