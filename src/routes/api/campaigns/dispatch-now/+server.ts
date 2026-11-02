@@ -27,13 +27,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const baseUrl = PUBLIC_APP_URL ?? 'http://localhost:5173';
   const dispatchUrl = `${baseUrl}/api/internal/dispatch`;
 
+  // Pass through the campaign_id (optional) from the caller so "Send Now"
+  // only dispatches that campaign's jobs; the cron job omits it (all jobs).
+  const reqBody = await request.json().catch(() => ({}));
+  const campaignId = reqBody.campaignId as string | undefined;
+
   try {
     const res = await fetch(dispatchUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${secret}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ campaignId: campaignId ?? null })
     });
 
     const body = await res.json() as Record<string, unknown>;

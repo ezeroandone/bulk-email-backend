@@ -135,7 +135,11 @@
     dispatching = true;
     dispatchResult = null;
     try {
-      const res = await fetch('/api/campaigns/dispatch-now', { method: 'POST' });
+      const res = await fetch('/api/campaigns/dispatch-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: campaign.id })
+      });
       const j = await res.json() as Record<string, unknown>;
       if (res.ok) {
         dispatchResult = `Dispatched — accepted: ${j.accepted ?? 0}, failed: ${j.failed ?? 0}, retrying: ${j.retrying ?? 0}`;

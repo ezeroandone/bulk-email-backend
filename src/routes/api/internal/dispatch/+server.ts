@@ -76,6 +76,11 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Optional campaign_id — when provided, only that campaign's queued jobs
+  // are claimed. When NULL (cron job), jobs from all campaigns are claimed.
+  const body = await request.json().catch(() => ({}));
+  const campaignId = body.campaignId as string | undefined;
+
   const deadline = Date.now() + DEADLINE_MS;
   const admin = createSupabaseAdminClient();
   const stats: DispatchStats = { processed: 0, accepted: 0, failed: 0, retrying: 0, uncertain: 0 };
@@ -96,18 +101,23 @@ export const POST: RequestHandler = async ({ request }) => {
   const { data: rpcResult, error: rpcErr } = await admin.rpc('claim_delivery_batch', {
     p_batch_token: batchToken,
     p_batch_size: BATCH_SIZE,
-    p_now: new Date().toISOString()
+    p_now: new Date().toISOString(),
+    p_campaign_id: campaignId ?? null
   });
 
   if (!rpcErr && Array.isArray(rpcResult) && rpcResult.length > 0) {
     claimedIds = (rpcResult as { id: string }[]).map((r) => r.id);
   } else {
     // Fallback: two-step claim (slight race window, acceptable for manual dispatch)
-    const { data: candidates } = await admin
+    let claimQuery = admin
       .from('delivery_jobs')
       .select('id')
       .eq('status', 'queued')
-      .or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`);
+    if (campaignId) {
+      claimQuery = claimQuery.eq('campaign_id', campaignId);
+    }
+    const { data: candidates } = await claimQuery
       .order('created_at', { ascending: true })
       .limit(BATCH_SIZE);
 
